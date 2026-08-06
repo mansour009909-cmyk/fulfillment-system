@@ -3,3 +3,4 @@ node_modules/
 prisma/dev.db
 .env
 public/warehouse-app.apk
+scripts/catalog_import.json

@@ -2,6 +2,5 @@ node_modules/
 .next/
 prisma/dev.db
 .env
-public/warehouse-app.apk
 scripts/catalog_import.json
 prisma/migrations_sqlite_backup/

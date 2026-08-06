@@ -87,7 +87,7 @@ export default function BooksIndex({ books, total, q }) {
       <Card className="divide-y divide-gray-100">
         {books.map((book) => (
           <div key={book.id} className="p-4 flex justify-between items-center">
-            <div className="flex items-center gap-3 min-w-0">
+            <Link href={`/books/${book.id}`} className="flex items-center gap-3 min-w-0 hover:opacity-80">
               {book.imageUrl ? (
                 <img
                   src={book.imageUrl}
@@ -104,7 +104,7 @@ export default function BooksIndex({ books, total, q }) {
                   {book.brandName && <span className="text-gray-400"> — {book.brandName}</span>}
                 </div>
               </div>
-            </div>
+            </Link>
             <div className="flex items-center gap-4">
               <div className="text-sm text-gray-500">{book.totalQty} نسخة</div>
               <Link

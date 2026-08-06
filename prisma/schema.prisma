@@ -34,6 +34,8 @@ model Book {
   imageUrl      String? // صورة غلاف الكتاب — من تصدير منتجات سلة
   brandName     String? // اسم الماركة/الناشر كما يظهر بمتجر سلة (قد يختلف نصيًا عن اسم المورد بالنظام)
   brandImageUrl String? // شعار الماركة — غير متوفر حاليًا (سلة ما يصدّره مع المنتجات)
+  price         Float? // سعر البيع — من تصدير منتجات سلة (مرجعي فقط، منفصل عن سعر فواتير الشراء الفعلية)
+  costPrice     Float? // سعر التكلفة — من نفس التصدير
 
   supplier             Supplier?             @relation(fields: [supplierId], references: [id])
   shelfStock           ShelfStock[]

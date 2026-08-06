@@ -6,6 +6,15 @@ import json
 import openpyxl
 
 
+def to_number(value):
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def main(xlsx_path, out_path):
     wb = openpyxl.load_workbook(xlsx_path, read_only=True)
     ws = wb.worksheets[0]
@@ -17,6 +26,8 @@ def main(xlsx_path, out_path):
     img_i = idx["صورة المنتج"]
     brand_i = idx["الماركة"]
     type_i = idx["نوع المنتج"]
+    price_i = idx["سعر المنتج"]
+    cost_i = idx["سعر التكلفة"]
 
     out = []
     skipped_no_sku = 0
@@ -35,6 +46,8 @@ def main(xlsx_path, out_path):
                 "barcode": str(barcode).strip(),
                 "imageUrl": (row[img_i] or "").strip() or None,
                 "brandName": (row[brand_i] or "").strip() or None,
+                "price": to_number(row[price_i]),
+                "costPrice": to_number(row[cost_i]),
             }
         )
 

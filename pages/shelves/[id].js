@@ -200,7 +200,7 @@ export default function ShelfDetail({ shelf }) {
       <Card className="divide-y divide-gray-100">
         {stock.map((s) => (
           <div key={s.bookId} className="p-4 flex justify-between items-center">
-            <div className="flex items-center gap-3 min-w-0">
+            <Link href={`/books/${s.bookId}`} className="flex items-center gap-3 min-w-0 hover:opacity-80">
               {s.book.imageUrl ? (
                 <img
                   src={s.book.imageUrl}
@@ -217,7 +217,7 @@ export default function ShelfDetail({ shelf }) {
                   {s.book.brandName && <span> — {s.book.brandName}</span>}
                 </div>
               </div>
-            </div>
+            </Link>
             <div className="flex items-center gap-4">
               <div className="text-lg font-semibold text-gray-900">{s.quantity}</div>
               <Link

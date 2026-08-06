@@ -18,7 +18,12 @@ async function main() {
     }
     await prisma.book.update({
       where: { id: book.id },
-      data: { imageUrl: row.imageUrl, brandName: row.brandName },
+      data: {
+        imageUrl: row.imageUrl,
+        brandName: row.brandName,
+        price: row.price ?? undefined,
+        costPrice: row.costPrice ?? undefined,
+      },
     });
     updated++;
   }

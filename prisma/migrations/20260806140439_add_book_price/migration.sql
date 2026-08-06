@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Book" ADD COLUMN     "costPrice" DOUBLE PRECISION,
+ADD COLUMN     "price" DOUBLE PRECISION;

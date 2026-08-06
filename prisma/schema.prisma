@@ -6,11 +6,8 @@ generator client {
 }
 
 datasource db {
-  // نبدأ بـ SQLite للتطوير المحلي، لاحقًا نغيرها إلى postgresql للإنتاج:
-  // provider = "postgresql"
-  // url      = env("DATABASE_URL")
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // رف في المستودع — كل رف له باركود وترتيب يحدد أولوية اللقط

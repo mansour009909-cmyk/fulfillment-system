@@ -1,0 +1,338 @@
+// المرحلة 1: أساس المخزون (رفوف، كتب، مخزون الرف)
+// راجع قسم 3 و 8 في وثيقة المتطلبات
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // نبدأ بـ SQLite للتطوير المحلي، لاحقًا نغيرها إلى postgresql للإنتاج:
+  // provider = "postgresql"
+  // url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// رف في المستودع — كل رف له باركود وترتيب يحدد أولوية اللقط
+model Shelf {
+  id        Int      @id @default(autoincrement())
+  barcode   String   @unique
+  name      String   // مثال: "رف A1"
+  sortOrder Int      @unique // ترتيب اللقط: 1 = أول رف يُلقط منه
+  createdAt DateTime @default(now())
+
+  stock            ShelfStock[]
+  scanLogs         ShelfScanLog[]
+  purchaseInvoices PurchaseInvoice[]
+}
+
+// كتاب (منتج) — له باركود فريد
+model Book {
+  id         Int      @id @default(autoincrement())
+  barcode    String   @unique
+  title      String
+  supplierId Int? // المورد "الافتراضي" لهذا الكتاب (كتالوج) — من استيراد ملف المخزون، يُستخدم لحساب المطلوب (قسم 8)
+  createdAt  DateTime @default(now())
+
+  supplier             Supplier?             @relation(fields: [supplierId], references: [id])
+  shelfStock           ShelfStock[]
+  orderItems           OrderItem[]
+  purchaseInvoiceItems PurchaseInvoiceItem[]
+  receivingScans       ReceivingScan[]
+  supplierOrderItems   SupplierOrderItem[]
+}
+
+// مخزون الرف — الربط بين الرف والكتاب + الكمية
+// مشترك بين كل العملاء افتراضيًا (ownership = SHARED)
+model ShelfStock {
+  id        Int      @id @default(autoincrement())
+  shelfId   Int
+  bookId    Int
+  quantity  Int      @default(0)
+  ownership String   @default("SHARED") // SHARED أو PRIVATE أو SUPPLIER (تخزين بغرض البيع لمورد — قسم 7.2)
+  clientId  Int?     // معبّى فقط إذا كان المخزون خاص بعميل معيّن
+  supplierId Int?    // معبّى فقط إذا كان المخزون خاص بمورد (ownership = SUPPLIER)
+  updatedAt DateTime @updatedAt
+
+  shelf Shelf @relation(fields: [shelfId], references: [id])
+  book  Book  @relation(fields: [bookId], references: [id])
+
+  @@unique([shelfId, bookId, ownership, clientId, supplierId])
+}
+
+// سجل كل عملية مسح لتحديث الرف (لتتبّع مين سوى العملية ومتى)
+model ShelfScanLog {
+  id        Int      @id @default(autoincrement())
+  shelfId   Int
+  bookBarcode String
+  quantityDelta Int  // +1 لكل مسح
+  scannedAt DateTime @default(now())
+
+  shelf Shelf @relation(fields: [shelfId], references: [id])
+}
+
+// المرحلة 2: الطلبات والتجهيز (راجع قسم 4 في وثيقة المتطلبات)
+
+// عميل/متجر — بسيط بالمرحلة 2 (اسم فقط)، يتوسّع بالمرحلة 3 (حسابات وصلاحيات)
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+
+  email        String? @unique // بريد دخول بوابة العميل — يُعيَّن من الإدارة فقط
+  passwordHash String?
+
+  orders       Order[]
+  fees         Fee[]
+  feeAuditLogs FeeAuditLog[]
+  orderCharges OrderCharge[]
+  invoices     ClientInvoice[]
+}
+
+// موظف مستودع — تسجيل دخول بالرقم السري خاص بتطبيق الجوال فقط (منفصل عن حساب الإدارة بالويب)
+model Employee {
+  id        Int      @id @default(autoincrement())
+  name      String
+  pinHash   String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  batches         PickingBatch[]
+  fulfilledOrders Order[]
+}
+
+// دفعة تجهيز جوّال — طبقة رقيقة فوق Order/OrderItem الموجودين (بدون تكرار بيانات)
+model PickingBatch {
+  id          Int       @id @default(autoincrement())
+  status      String    @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED
+  employeeId  Int
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  employee Employee            @relation(fields: [employeeId], references: [id])
+  orders   PickingBatchOrder[]
+}
+
+model PickingBatchOrder {
+  id        Int @id @default(autoincrement())
+  batchId   Int
+  orderId   Int @unique
+  boxNumber Int
+
+  batch PickingBatch @relation(fields: [batchId], references: [id])
+  order Order        @relation(fields: [orderId], references: [id])
+
+  @@unique([batchId, boxNumber])
+}
+
+// طلب عميل — الصندوق يحمل نفس رقم الطلب كباركود (راجع قسم 4.2)
+model Order {
+  id          Int      @id @default(autoincrement())
+  orderNumber String   @unique
+  clientId    Int
+  status      String   @default("PENDING_REVIEW") // PENDING_REVIEW | IN_REVIEW | FULFILLED
+  size        String? // SMALL أو LARGE — يُحدَّد عند اكتمال التجهيز
+  boxScanned  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  fulfilledByEmployeeId Int? // أي موظف أكمل هذا الطلب فعليًا (لإحصائية الأداء) — عبر تطبيق الجوال
+
+  client              Client             @relation(fields: [clientId], references: [id])
+  fulfilledByEmployee Employee?          @relation(fields: [fulfilledByEmployeeId], references: [id])
+  items               OrderItem[]
+  charge              OrderCharge?
+  pickingBatchOrder   PickingBatchOrder?
+}
+
+// بند طلب — quantityPicked يتحدث أثناء اللقط من الرف (قسم 4.3)،
+// quantityVerified يتحدث أثناء مسح الكتب داخل الصندوق للتحقق (قسم 4.4)
+model OrderItem {
+  id               Int @id @default(autoincrement())
+  orderId          Int
+  bookId           Int
+  quantityRequired Int
+  quantityPicked   Int @default(0)
+  quantityVerified Int @default(0)
+  quantityShort    Int @default(0) // أُعلن "غير متوفر" (تخطّي) أثناء دفعة لقط جوّال
+
+  order Order @relation(fields: [orderId], references: [id])
+  book  Book  @relation(fields: [bookId], references: [id])
+}
+
+// المرحلة 4: الرسوم وفواتير العملاء (راجع قسم 2.4 وقسم 10 في وثيقة المتطلبات)
+
+// سعر رسم — clientId فارغ = سعر عام افتراضي، وإلا سعر مخصص لعميل معيّن يُلغي العام
+model Fee {
+  id        Int      @id @default(autoincrement())
+  type      String // FULFILLMENT | LABEL | SHIPPING | CARTON_SMALL | CARTON_LARGE | BUBBLES | SHIPPING_BAG | STORAGE
+  clientId  Int?
+  amount    Float
+  updatedAt DateTime @updatedAt
+
+  client Client? @relation(fields: [clientId], references: [id])
+
+  @@unique([type, clientId])
+}
+
+// سجل كل تعديل على الأسعار (عام أو مخصص)
+model FeeAuditLog {
+  id        Int      @id @default(autoincrement())
+  feeType   String
+  clientId  Int?
+  oldAmount Float
+  newAmount Float
+  changedBy String   @default("مستخدم النظام")
+  changedAt DateTime @default(now())
+
+  client Client? @relation(fields: [clientId], references: [id])
+}
+
+// لقطة رسوم الطلب وقت اكتماله — تبقى ثابتة حتى لو تغيّرت الأسعار لاحقًا
+model OrderCharge {
+  id             Int      @id @default(autoincrement())
+  orderId        Int      @unique
+  clientId       Int
+  fulfillmentFee Float
+  labelFee       Float
+  shippingFee    Float
+  packagingFee   Float
+  invoiced       Boolean  @default(false)
+  invoiceId      Int?
+  createdAt      DateTime @default(now())
+
+  order   Order          @relation(fields: [orderId], references: [id])
+  client  Client         @relation(fields: [clientId], references: [id])
+  invoice ClientInvoice? @relation(fields: [invoiceId], references: [id])
+}
+
+// فاتورة مستحقات عميل — تُولَّد يدويًا من الشحنات المكتملة غير المفوترة
+model ClientInvoice {
+  id          Int      @id @default(autoincrement())
+  clientId    Int
+  periodStart DateTime
+  periodEnd   DateTime
+  status      String   @default("UNPAID") // UNPAID | PAID
+  total       Float
+  createdAt   DateTime @default(now())
+
+  client  Client        @relation(fields: [clientId], references: [id])
+  charges OrderCharge[]
+}
+
+// جرد فواتير الموردين — نظام محاسبة داخلي (راجع قسم 6 في وثيقة المتطلبات)
+
+// مورد
+model Supplier {
+  id         Int      @id @default(autoincrement())
+  name       String
+  balance    Float    @default(0) // يزيد عند اعتماد كل فاتورة شراء عادية (المستحق للمورد)
+  importance String   @default("NORMAL") // IMPORTANT | NORMAL — قسم 8.3
+  location   String   @default("DOMESTIC") // DOMESTIC | INTERNATIONAL — قسم 8.4
+  salesPeriodDays Int @default(90) // فترة حساب المبيعات لحساب "المطلوب" (افتراضي 3 أشهر) — قسم 8.1
+  createdAt  DateTime @default(now())
+
+  email        String? @unique // بريد دخول بوابة المورد — يُعيَّن من الإدارة فقط
+  passwordHash String?
+
+  invoices     PurchaseInvoice[]
+  storageUnits SupplierStorageUnit[]
+  books        Book[] // كتالوج المورد (من استيراد ملف المخزون)
+  orders       SupplierOrder[]
+}
+
+// طلبية مقترحة/جارية لمورد — تغطي فقط ما قبل الوصول الفعلي؛ بعد الوصول تتحول لفاتورة شراء عادية (قسم 8)
+model SupplierOrder {
+  id                Int       @id @default(autoincrement())
+  supplierId        Int
+  status            String    @default("PROPOSED") // PROPOSED | ORDERED | SHIPPED | ARRIVED
+  createdAt         DateTime  @default(now())
+  orderedAt         DateTime?
+  shippedAt         DateTime?
+  arrivedAt         DateTime?
+  purchaseInvoiceId Int?      @unique // يُعبّى عند "تم الوصول" — الفاتورة المنشأة تلقائيًا لتكملة المسار الحالي
+
+  supplier        Supplier            @relation(fields: [supplierId], references: [id])
+  purchaseInvoice PurchaseInvoice?    @relation(fields: [purchaseInvoiceId], references: [id])
+  items           SupplierOrderItem[]
+}
+
+model SupplierOrderItem {
+  id               Int     @id @default(autoincrement())
+  supplierOrderId  Int
+  bookId           Int
+  soldInPeriod     Int // الكمية المباعة بفترة الحساب (مرجعي، محسوب وقت الاقتراح)
+  quantityProposed Int // محسوب تلقائيًا = soldInPeriod (بحد أدنى 2 لو مُدرج)
+  quantityFinal    Int // قابلة للتعديل من الموظف قبل "تأكيد الطلب"
+  included         Boolean @default(true) // إدراج/استبعاد يدوي (خصوصًا للموردين "العاديين")
+
+  supplierOrder SupplierOrder @relation(fields: [supplierOrderId], references: [id])
+  book          Book          @relation(fields: [bookId], references: [id])
+}
+
+// وحدة/رسوم تخزين دورية لمورد لدى المستودع (قسم 7.1 و7.2 — نفس مفهوم الرسوم لكلا نوعي التخزين)
+model SupplierStorageUnit {
+  id           Int      @id @default(autoincrement())
+  supplierId   Int
+  label        String // وصف الوحدة/الكرتون
+  feePerPeriod Float // رسوم تخزين دورية (شهرية)
+  active       Boolean  @default(true)
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+}
+
+// فاتورة شراء — تُنشأ داخل النظام كمسودة، تتحول لمعتمدة بعد المطابقة (قسم 6.1، 6.3)
+model PurchaseInvoice {
+  id         Int       @id @default(autoincrement())
+  supplierId Int
+  status     String    @default("DRAFT") // DRAFT | APPROVED
+  createdAt  DateTime  @default(now())
+  approvedAt DateTime?
+  shelfId    Int? // الرف اللي أُضيف له المخزون وقت الاعتماد — يلزم لتعديل الكمية بعد الاعتماد
+  type       String    @default("PURCHASE") // PURCHASE (نشتريه) | CONSIGNMENT (تخزين بغرض البيع، يبقى ملك المورد) — قسم 7.2
+
+  supplier      Supplier              @relation(fields: [supplierId], references: [id])
+  shelf         Shelf?                @relation(fields: [shelfId], references: [id])
+  items         PurchaseInvoiceItem[]
+  scans         ReceivingScan[]
+  supplierOrder SupplierOrder?
+}
+
+model PurchaseInvoiceItem {
+  id               Int   @id @default(autoincrement())
+  invoiceId        Int
+  bookId           Int
+  quantityExpected Int
+  price            Float
+
+  invoice PurchaseInvoice @relation(fields: [invoiceId], references: [id])
+  book    Book            @relation(fields: [bookId], references: [id])
+}
+
+// مسح عام أثناء استلام أي شحنة (قسم 6.2) — بدون مورد أو فاتورة محدَّدين وقت المسح.
+// invoiceId يُعبّى فقط بعد المطابقة والاعتماد (قسم 6.3) — يحدّد المورد ضمنيًا عبر invoice.supplierId
+model ReceivingScan {
+  id        Int      @id @default(autoincrement())
+  bookId    Int
+  invoiceId Int?
+  scannedAt DateTime @default(now())
+
+  book    Book             @relation(fields: [bookId], references: [id])
+  invoice PurchaseInvoice? @relation(fields: [invoiceId], references: [id])
+}
+
+// إعدادات النظام العامة — صف واحد ثابت (id = 1). قيم كانت ثابتة بالكود صارت قابلة للتعديل من /settings
+model SystemSetting {
+  id                            Int      @id @default(1)
+  warehouseName                 String   @default("المستودع الرئيسي")
+  importantSupplierSharePercent Float    @default(80) // نسبة كتالوج المورد "المهم" المُدرَجة تلقائيًا بالطلبية المقترحة — قسم 8.3
+  minOrderQtyTotal               Int      @default(50) // الحد الأدنى الإجمالي المعتاد للطلبية — قسم 8.2 (تنبيه غير مانع فقط)
+  minOrderQtyPerTitle            Int      @default(2) // الحد الأدنى لكل عنوان مُدرَج بالطلبية — قسم 8.2
+  defaultSalesPeriodDays         Int      @default(90) // الفترة الافتراضية لحساب المبيعات — تُطبَّق على الموردين الجدد ونطاق التقارير العامة — قسم 8.1
+  delayDaysDomestic               Int      @default(7)  // تنبيه تأخير طلبية مورد داخلي (أيام) — قسم 8.4
+  delayDaysInternational          Int      @default(21) // تنبيه تأخير طلبية مورد خارجي (أيام) — قسم 8.4
+  adminUsername                  String   @default("admin") // حساب الإدارة المشترك للوحة التحكم الرئيسية بالويب
+  adminPasswordHash              String?
+  updatedAt                      DateTime @updatedAt
+}

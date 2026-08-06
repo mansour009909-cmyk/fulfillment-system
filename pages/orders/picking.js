@@ -42,6 +42,8 @@ export async function getServerSideProps() {
       bookId: stock.bookId,
       barcode: needed.book.barcode,
       title: needed.book.title,
+      imageUrl: needed.book.imageUrl,
+      brandName: needed.book.brandName,
       remaining: needed.remaining,
       available: stock.quantity,
     });
@@ -204,13 +206,25 @@ export default function Picking({ pickList: initialPickList, outOfStock, batchSi
             <div className="divide-y divide-gray-100">
               {currentShelf.rows.map((row) => (
                 <div key={row.bookId} className="py-2 flex justify-between items-center text-sm">
-                  <div className="flex items-center gap-2">
-                    {row.remaining <= 0 && <Check size={16} className="text-green-600" />}
-                    <div>
-                      <div className={row.remaining <= 0 ? "text-gray-400 line-through" : "text-gray-900"}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    {row.remaining <= 0 && <Check size={16} className="text-green-600 shrink-0" />}
+                    {row.imageUrl ? (
+                      <img
+                        src={row.imageUrl}
+                        alt=""
+                        className="h-10 w-10 rounded-lg object-cover shrink-0 border border-gray-100"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-lg bg-gray-50 border border-gray-100 shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <div className={row.remaining <= 0 ? "text-gray-400 line-through truncate" : "text-gray-900 truncate"}>
                         {row.title}
                       </div>
-                      <div className="text-gray-400">{row.barcode}</div>
+                      <div className="text-gray-400 truncate">
+                        {row.barcode}
+                        {row.brandName && <span> — {row.brandName}</span>}
+                      </div>
                     </div>
                   </div>
                   <div className={row.remaining <= 0 ? "text-green-600" : "text-gray-600"}>

@@ -26,6 +26,8 @@ export async function getServerSideProps({ query }) {
     id: b.id,
     barcode: b.barcode,
     title: b.title,
+    imageUrl: b.imageUrl,
+    brandName: b.brandName,
     totalQty: b.shelfStock.reduce((sum, s) => sum + s.quantity, 0),
   }));
 
@@ -85,9 +87,23 @@ export default function BooksIndex({ books, total, q }) {
       <Card className="divide-y divide-gray-100">
         {books.map((book) => (
           <div key={book.id} className="p-4 flex justify-between items-center">
-            <div>
-              <div className="font-medium text-gray-900">{book.title}</div>
-              <div className="text-sm text-gray-400">{book.barcode}</div>
+            <div className="flex items-center gap-3 min-w-0">
+              {book.imageUrl ? (
+                <img
+                  src={book.imageUrl}
+                  alt=""
+                  className="h-12 w-12 rounded-lg object-cover shrink-0 border border-gray-100"
+                />
+              ) : (
+                <div className="h-12 w-12 rounded-lg bg-gray-50 border border-gray-100 shrink-0" />
+              )}
+              <div className="min-w-0">
+                <div className="font-medium text-gray-900 truncate">{book.title}</div>
+                <div className="text-sm text-gray-400">
+                  {book.barcode}
+                  {book.brandName && <span className="text-gray-400"> — {book.brandName}</span>}
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-sm text-gray-500">{book.totalQty} نسخة</div>

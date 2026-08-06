@@ -27,6 +27,8 @@ export default async function handler(req, res) {
         bookId: i.bookId,
         title: i.book.title,
         barcode: i.book.barcode,
+        imageUrl: i.book.imageUrl,
+        brandName: i.book.brandName,
         quantityRequired: i.quantityRequired,
         quantityVerified: i.quantityVerified,
       })),

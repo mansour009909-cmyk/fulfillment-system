@@ -31,6 +31,10 @@ model Book {
   supplierId Int? // المورد "الافتراضي" لهذا الكتاب (كتالوج) — من استيراد ملف المخزون، يُستخدم لحساب المطلوب (قسم 8)
   createdAt  DateTime @default(now())
 
+  imageUrl      String? // صورة غلاف الكتاب — من تصدير منتجات سلة
+  brandName     String? // اسم الماركة/الناشر كما يظهر بمتجر سلة (قد يختلف نصيًا عن اسم المورد بالنظام)
+  brandImageUrl String? // شعار الماركة — غير متوفر حاليًا (سلة ما يصدّره مع المنتجات)
+
   supplier             Supplier?             @relation(fields: [supplierId], references: [id])
   shelfStock           ShelfStock[]
   orderItems           OrderItem[]

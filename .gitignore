@@ -3,4 +3,5 @@ node_modules/
 prisma/dev.db
 .env
 scripts/catalog_import.json
+scripts/product_images_import.json
 prisma/migrations_sqlite_backup/

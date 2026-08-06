@@ -200,9 +200,23 @@ export default function ShelfDetail({ shelf }) {
       <Card className="divide-y divide-gray-100">
         {stock.map((s) => (
           <div key={s.bookId} className="p-4 flex justify-between items-center">
-            <div>
-              <div className="font-medium text-gray-900">{s.book.title}</div>
-              <div className="text-sm text-gray-400">{s.book.barcode}</div>
+            <div className="flex items-center gap-3 min-w-0">
+              {s.book.imageUrl ? (
+                <img
+                  src={s.book.imageUrl}
+                  alt=""
+                  className="h-12 w-12 rounded-lg object-cover shrink-0 border border-gray-100"
+                />
+              ) : (
+                <div className="h-12 w-12 rounded-lg bg-gray-50 border border-gray-100 shrink-0" />
+              )}
+              <div className="min-w-0">
+                <div className="font-medium text-gray-900 truncate">{s.book.title}</div>
+                <div className="text-sm text-gray-400">
+                  {s.book.barcode}
+                  {s.book.brandName && <span> — {s.book.brandName}</span>}
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-lg font-semibold text-gray-900">{s.quantity}</div>

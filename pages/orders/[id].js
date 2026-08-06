@@ -33,6 +33,8 @@ export async function getServerSideProps({ params }) {
           bookId: i.bookId,
           title: i.book.title,
           barcode: i.book.barcode,
+          imageUrl: i.book.imageUrl,
+          brandName: i.book.brandName,
           quantityRequired: i.quantityRequired,
           quantityVerified: i.quantityVerified,
         })),
@@ -231,9 +233,23 @@ export default function OrderDetail({ order }) {
       <Card className="divide-y divide-gray-100 mb-6">
         {items.map((item) => (
           <div key={item.bookId} className="p-4 flex justify-between items-center">
-            <div>
-              <div className="font-medium text-gray-900">{item.title}</div>
-              <div className="text-sm text-gray-400">{item.barcode}</div>
+            <div className="flex items-center gap-3 min-w-0">
+              {item.imageUrl ? (
+                <img
+                  src={item.imageUrl}
+                  alt=""
+                  className="h-12 w-12 rounded-lg object-cover shrink-0 border border-gray-100"
+                />
+              ) : (
+                <div className="h-12 w-12 rounded-lg bg-gray-50 border border-gray-100 shrink-0" />
+              )}
+              <div className="min-w-0">
+                <div className="font-medium text-gray-900 truncate">{item.title}</div>
+                <div className="text-sm text-gray-400 truncate">
+                  {item.barcode}
+                  {item.brandName && <span> — {item.brandName}</span>}
+                </div>
+              </div>
             </div>
             <div
               className={`text-lg font-semibold ${

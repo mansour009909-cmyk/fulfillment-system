@@ -1,15 +1,23 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { ArrowRight, ScanLine, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowRight, ScanLine, Plus, Printer, Trash2, ArrowLeftRight, X } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { Card } from "../../components/ui/Card";
 
 export async function getServerSideProps({ params }) {
-  const shelf = await prisma.shelf.findUnique({
-    where: { id: Number(params.id) },
-    include: { stock: { include: { book: true } } },
-  });
+  const shelfId = Number(params.id);
+  const [shelf, otherShelves] = await Promise.all([
+    prisma.shelf.findUnique({
+      where: { id: shelfId },
+      include: { stock: { where: { ownership: "SHARED", clientId: null }, include: { book: true } } },
+    }),
+    prisma.shelf.findMany({
+      where: { id: { not: shelfId } },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true, barcode: true },
+    }),
+  ]);
 
   if (!shelf) return { notFound: true };
 
@@ -24,11 +32,12 @@ export async function getServerSideProps({ params }) {
           book: { ...s.book, createdAt: s.book.createdAt.toISOString() },
         })),
       },
+      otherShelves,
     },
   };
 }
 
-export default function ShelfDetail({ shelf }) {
+export default function ShelfDetail({ shelf, otherShelves }) {
   const router = useRouter();
   const [stock, setStock] = useState(shelf.stock);
   const [scanInput, setScanInput] = useState("");
@@ -36,6 +45,11 @@ export default function ShelfDetail({ shelf }) {
   const [error, setError] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [transferBookId, setTransferBookId] = useState(null);
+  const [transferTarget, setTransferTarget] = useState("");
+  const [transferQty, setTransferQty] = useState("");
+  const [transferError, setTransferError] = useState(null);
+  const [transferSaving, setTransferSaving] = useState(false);
   const inputRef = useRef(null);
 
   async function handleDelete() {
@@ -43,13 +57,72 @@ export default function ShelfDetail({ shelf }) {
     setDeleting(true);
     setDeleteError(null);
     const res = await fetch(`/api/shelves/${shelf.id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const data = await res.json();
-      setDeleteError(data.error || "حدث خطأ");
+    if (res.ok) {
+      router.push("/shelves");
+      return;
+    }
+
+    const data = await res.json();
+    if (data.hasStock) {
+      const typed = window.prompt(
+        `الرف فيه مخزون. لتأكيد الحذف بالقوة (يُفقد تتبّع الكمية بالنظام)، اكتب باركود الرف بالضبط: ${shelf.barcode}`
+      );
+      if (typed === shelf.barcode) {
+        const res2 = await fetch(`/api/shelves/${shelf.id}?force=true`, { method: "DELETE" });
+        if (res2.ok) {
+          router.push("/shelves");
+          return;
+        }
+        const data2 = await res2.json();
+        setDeleteError(data2.error || "حدث خطأ");
+      }
       setDeleting(false);
       return;
     }
-    router.push("/shelves");
+
+    setDeleteError(data.error || "حدث خطأ");
+    setDeleting(false);
+  }
+
+  async function handleRemoveBook(bookId, title) {
+    if (!window.confirm(`إزالة "${title}" من هذا الرف؟`)) return;
+    const res = await fetch(`/api/shelves/${shelf.id}/stock/${bookId}`, { method: "DELETE" });
+    if (res.ok) {
+      setStock((prev) => prev.filter((s) => s.bookId !== bookId));
+    }
+  }
+
+  function openTransfer(bookId) {
+    setTransferBookId(bookId);
+    setTransferTarget("");
+    setTransferQty("");
+    setTransferError(null);
+  }
+
+  async function handleTransfer(bookId) {
+    setTransferError(null);
+    if (!transferTarget) {
+      setTransferError("اختر الرف الهدف");
+      return;
+    }
+    setTransferSaving(true);
+    const res = await fetch(`/api/shelves/${shelf.id}/transfer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookId, toShelfId: Number(transferTarget), quantity: transferQty }),
+    });
+    const data = await res.json();
+    setTransferSaving(false);
+    if (!res.ok) {
+      setTransferError(data.error || "حدث خطأ");
+      return;
+    }
+    setStock((prev) =>
+      prev
+        .map((s) => (s.bookId === bookId ? { ...s, quantity: s.quantity - Number(transferQty) } : s))
+        .filter((s) => s.quantity > 0)
+    );
+    setTransferBookId(null);
   }
 
   const [manualBarcode, setManualBarcode] = useState("");
@@ -228,35 +301,91 @@ export default function ShelfDetail({ shelf }) {
 
       <Card className="divide-y divide-gray-100">
         {stock.map((s) => (
-          <div key={s.bookId} className="p-4 flex justify-between items-center">
-            <Link href={`/books/${s.bookId}`} className="flex items-center gap-3 min-w-0 hover:opacity-80">
-              {s.book.imageUrl ? (
-                <img
-                  src={s.book.imageUrl}
-                  alt=""
-                  className="h-12 w-12 rounded-lg object-cover shrink-0 border border-gray-100"
-                />
-              ) : (
-                <div className="h-12 w-12 rounded-lg bg-gray-50 border border-gray-100 shrink-0" />
-              )}
-              <div className="min-w-0">
-                <div className="font-medium text-gray-900 truncate">{s.book.title}</div>
-                <div className="text-sm text-gray-400">
-                  {s.book.barcode}
-                  {s.book.brandName && <span> — {s.book.brandName}</span>}
+          <div key={s.bookId} className="p-4">
+            <div className="flex justify-between items-center">
+              <Link href={`/books/${s.bookId}`} className="flex items-center gap-3 min-w-0 hover:opacity-80">
+                {s.book.imageUrl ? (
+                  <img
+                    src={s.book.imageUrl}
+                    alt=""
+                    className="h-12 w-12 rounded-lg object-cover shrink-0 border border-gray-100"
+                  />
+                ) : (
+                  <div className="h-12 w-12 rounded-lg bg-gray-50 border border-gray-100 shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <div className="font-medium text-gray-900 truncate">{s.book.title}</div>
+                  <div className="text-sm text-gray-400">
+                    {s.book.barcode}
+                    {s.book.brandName && <span> — {s.book.brandName}</span>}
+                  </div>
                 </div>
-              </div>
-            </Link>
-            <div className="flex items-center gap-4">
-              <div className="text-lg font-semibold text-gray-900">{s.quantity}</div>
-              <Link
-                href={`/books/${s.bookId}/barcode`}
-                className="inline-flex items-center gap-1 text-sm text-blue-600"
-              >
-                <Printer size={14} />
-                طباعة
               </Link>
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="text-lg font-semibold text-gray-900">{s.quantity}</div>
+                <Link
+                  href={`/books/${s.bookId}/barcode`}
+                  className="inline-flex items-center gap-1 text-sm text-blue-600"
+                  title="طباعة"
+                >
+                  <Printer size={14} />
+                </Link>
+                <button
+                  onClick={() => openTransfer(s.bookId)}
+                  className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
+                  title="نقل لرف آخر"
+                >
+                  <ArrowLeftRight size={14} />
+                </button>
+                <button
+                  onClick={() => handleRemoveBook(s.bookId, s.book.title)}
+                  className="inline-flex items-center gap-1 text-sm text-red-600"
+                  title="إزالة من الرف"
+                >
+                  <X size={14} />
+                </button>
+              </div>
             </div>
+
+            {transferBookId === s.bookId && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg flex flex-wrap items-center gap-2">
+                <select
+                  value={transferTarget}
+                  onChange={(e) => setTransferTarget(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm"
+                >
+                  <option value="">اختر الرف الهدف...</option>
+                  {otherShelves.map((os) => (
+                    <option key={os.id} value={os.id}>
+                      {os.name} ({os.barcode})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="1"
+                  max={s.quantity}
+                  value={transferQty}
+                  onChange={(e) => setTransferQty(e.target.value)}
+                  placeholder={`الكمية (أقصى ${s.quantity})`}
+                  className="w-40 border border-gray-200 rounded-lg px-2 py-1.5 text-sm"
+                />
+                <button
+                  onClick={() => handleTransfer(s.bookId)}
+                  disabled={transferSaving}
+                  className="bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm disabled:opacity-50"
+                >
+                  {transferSaving ? "جاري النقل..." : "نقل"}
+                </button>
+                <button
+                  onClick={() => setTransferBookId(null)}
+                  className="text-sm text-gray-500"
+                >
+                  إلغاء
+                </button>
+                {transferError && <p className="text-red-600 text-xs w-full">{transferError}</p>}
+              </div>
+            )}
           </div>
         ))}
         {stock.length === 0 && (

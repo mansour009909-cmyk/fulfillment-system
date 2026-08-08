@@ -12,7 +12,8 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "DELETE") {
-    const { result, error } = await deleteShelf(Number(req.query.id));
+    const force = req.query.force === "true";
+    const { result, error } = await deleteShelf(Number(req.query.id), { force });
     if (error) return res.status(error.status).json(error.body);
     return res.status(200).json(result);
   }

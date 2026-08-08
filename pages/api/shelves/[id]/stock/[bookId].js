@@ -1,12 +1,11 @@
-import { deleteShelf } from "../../../../lib/shelfInventory";
+import { removeBookFromShelf } from "../../../../../lib/shelfInventory";
 
 export default async function handler(req, res) {
   if (req.method !== "DELETE") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const force = req.query.force === "true";
-  const { result, error } = await deleteShelf(Number(req.query.id), { force });
+  const { result, error } = await removeBookFromShelf(Number(req.query.id), Number(req.query.bookId));
   if (error) return res.status(error.status).json(error.body);
   return res.status(200).json(result);
 }

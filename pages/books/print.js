@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Printer } from "lucide-react";
-import { prisma } from "../../lib/prisma";
+import { searchBooks } from "../../lib/bookCatalog";
 import { BarcodeLabelSheet } from "../../components/BarcodeLabelSheet";
 
 // يطبع باركود كل الكتب المطابقة لنفس فلاتر /books الحالية (q, brand, supplierId, stock)
@@ -10,21 +10,14 @@ export async function getServerSideProps({ query }) {
   const supplierId = query.supplierId ? Number(query.supplierId) : null;
   const stock = query.stock || "";
 
-  const where = {
-    ...(q ? { OR: [{ title: { contains: q } }, { barcode: { contains: q } }] } : {}),
-    ...(brand ? { brandName: brand } : {}),
-    ...(supplierId ? { supplierId } : {}),
-    ...(stock === "in" ? { shelfStock: { some: { ownership: "SHARED", clientId: null, quantity: { gt: 0 } } } } : {}),
-    ...(stock === "out" ? { shelfStock: { none: { ownership: "SHARED", clientId: null, quantity: { gt: 0 } } } } : {}),
+  const { books } = await searchBooks({ q, brand, supplierId, stock, pageSize: 10000 });
+
+  return {
+    props: {
+      books: books.map((b) => ({ id: b.id, barcode: b.barcode, title: b.title })),
+      filtered: Boolean(q || brand || supplierId || stock),
+    },
   };
-
-  const books = await prisma.book.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    select: { id: true, barcode: true, title: true },
-  });
-
-  return { props: { books, filtered: Boolean(q || brand || supplierId || stock) } };
 }
 
 export default function PrintBooks({ books, filtered }) {

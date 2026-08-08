@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import { Plus, Printer, ArrowRight, Search, ChevronRight, ChevronLeft } from "lucide-react";
 import { prisma } from "../../lib/prisma";
+import { searchBooks, listBrands } from "../../lib/bookCatalog";
 import { Card } from "../../components/ui/Card";
 
 const PAGE_SIZE = 50;
@@ -14,29 +15,9 @@ export async function getServerSideProps({ query }) {
   const stock = query.stock || ""; // "in" | "out" | ""
   const page = Math.max(1, Number(query.page) || 1);
 
-  const where = {
-    ...(q ? { OR: [{ title: { contains: q } }, { barcode: { contains: q } }] } : {}),
-    ...(brand ? { brandName: brand } : {}),
-    ...(supplierId ? { supplierId } : {}),
-    ...(stock === "in" ? { shelfStock: { some: { ownership: "SHARED", clientId: null, quantity: { gt: 0 } } } } : {}),
-    ...(stock === "out" ? { shelfStock: { none: { ownership: "SHARED", clientId: null, quantity: { gt: 0 } } } } : {}),
-  };
-
-  const [books, total, brandRows, suppliers] = await Promise.all([
-    prisma.book.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: { shelfStock: { where: { ownership: "SHARED", clientId: null } } },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
-    prisma.book.count({ where }),
-    prisma.book.findMany({
-      where: { brandName: { not: null } },
-      distinct: ["brandName"],
-      select: { brandName: true },
-      orderBy: { brandName: "asc" },
-    }),
+  const [{ books, total, totalPages }, brands, suppliers] = await Promise.all([
+    searchBooks({ q, brand, supplierId, stock, page, pageSize: PAGE_SIZE }),
+    listBrands(),
     prisma.supplier.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
@@ -46,22 +27,11 @@ export async function getServerSideProps({ query }) {
     title: b.title,
     imageUrl: b.imageUrl,
     brandName: b.brandName,
-    totalQty: b.shelfStock.reduce((sum, s) => sum + s.quantity, 0),
+    totalQty: b.totalQty,
   }));
 
   return {
-    props: {
-      books: data,
-      total,
-      totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
-      page,
-      q,
-      brand,
-      supplierId,
-      stock,
-      brands: brandRows.map((b) => b.brandName),
-      suppliers,
-    },
+    props: { books: data, total, totalPages, page, q, brand, supplierId, stock, brands, suppliers },
   };
 }
 

@@ -16,6 +16,7 @@ export async function getServerSideProps() {
         defaultSalesPeriodDays: settings.defaultSalesPeriodDays,
         delayDaysDomestic: settings.delayDaysDomestic,
         delayDaysInternational: settings.delayDaysInternational,
+        boxCount: settings.boxCount,
       },
       adminUsername: settings.adminUsername,
     },
@@ -150,6 +151,25 @@ export default function SettingsPage({ settings, adminUsername }) {
               required
             />
             <p className="text-xs text-gray-400 mt-1">يظهر بالشريط العلوي بكل صفحات النظام.</p>
+          </div>
+
+          <div className="border-t border-gray-100 pt-5">
+            <h2 className="text-sm font-semibold text-gray-800 mb-3">اللقط والتحقق</h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">عدد الصناديق الفعلية بالمستودع</label>
+              <input
+                type="number"
+                min="1"
+                value={form.boxCount}
+                onChange={(e) => set("boxCount", e.target.value)}
+                className="w-32 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                صناديق ثابتة قابلة لإعادة الاستخدام (BOX-01..BOX-N) تُطبع مرة واحدة من صفحة الطلبات، وتُخصَّص تلقائيًا
+                للطلبات أثناء اللقط وتتحرر عند اكتمالها.
+              </p>
+            </div>
           </div>
 
           <div className="border-t border-gray-100 pt-5">

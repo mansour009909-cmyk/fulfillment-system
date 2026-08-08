@@ -26,6 +26,7 @@ export async function getServerSideProps({ params }) {
         orderNumber: order.orderNumber,
         status: order.status,
         size: order.size,
+        boxNumber: order.boxNumber,
         boxScanned: order.boxScanned,
         clientName: order.client.name,
         createdAt: order.createdAt.toISOString(),
@@ -46,6 +47,7 @@ export async function getServerSideProps({ params }) {
 export default function OrderDetail({ order }) {
   const router = useRouter();
   const [boxScanned, setBoxScanned] = useState(order.boxScanned);
+  const [boxNumber, setBoxNumber] = useState(order.boxNumber);
   const [status, setStatus] = useState(order.status);
   const [items, setItems] = useState(order.items);
 
@@ -88,6 +90,7 @@ export default function OrderDetail({ order }) {
       return;
     }
     setBoxScanned(true);
+    if (data.boxNumber) setBoxNumber(data.boxNumber);
   }
 
   async function handleBookScan(e) {
@@ -164,6 +167,7 @@ export default function OrderDetail({ order }) {
         <div className="flex items-center gap-3 mb-1">
           <h1 className="text-2xl font-bold text-gray-900">#{order.orderNumber}</h1>
           <Badge variant={st.variant}>{st.label}</Badge>
+          {boxNumber && <Badge variant="info">صندوق رقم {boxNumber}</Badge>}
         </div>
         <p className="text-gray-500">{order.clientName}</p>
       </div>
@@ -173,13 +177,15 @@ export default function OrderDetail({ order }) {
           <form onSubmit={handleBoxScan}>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
               <ScanLine size={16} />
-              امسح باركود الصندوق قبل البدء بالتحقق
+              {boxNumber
+                ? `امسح باركود الصندوق رقم ${boxNumber} قبل البدء بالتحقق`
+                : "امسح باركود الصندوق الفعلي قبل البدء بالتحقق"}
             </label>
             <input
               ref={boxRef}
               value={boxInput}
               onChange={(e) => setBoxInput(e.target.value)}
-              placeholder="امسح أو اكتب باركود الصندوق..."
+              placeholder="امسح أو اكتب باركود الصندوق (BOX-01)..."
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />

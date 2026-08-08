@@ -128,13 +128,15 @@ model PickingBatchOrder {
   @@unique([batchId, boxNumber])
 }
 
-// طلب عميل — الصندوق يحمل نفس رقم الطلب كباركود (راجع قسم 4.2)
+// طلب عميل — يُخصَّص له صندوق فعلي من مجموعة الصناديق الثابتة القابلة لإعادة الاستخدام أثناء اللقط
+// (باركود الصندوق عام/ثابت — BOX-01..BOX-N — وليس رقم الطلب)، ويتحرر الرقم عند اكتمال الطلب
 model Order {
   id          Int      @id @default(autoincrement())
   orderNumber String   @unique
   clientId    Int
   status      String   @default("PENDING_REVIEW") // PENDING_REVIEW | IN_REVIEW | FULFILLED
   size        String? // SMALL أو LARGE — يُحدَّد عند اكتمال التجهيز
+  boxNumber   Int? // رقم الصندوق الفعلي المخصَّص حاليًا (من 1 إلى SystemSetting.boxCount)، فاضي بعد الإكمال
   boxScanned  Boolean  @default(false)
   createdAt   DateTime @default(now())
 
@@ -337,5 +339,6 @@ model SystemSetting {
   delayDaysInternational          Int      @default(21) // تنبيه تأخير طلبية مورد خارجي (أيام) — قسم 8.4
   adminUsername                  String   @default("admin") // حساب الإدارة المشترك للوحة التحكم الرئيسية بالويب
   adminPasswordHash              String?
+  boxCount                       Int      @default(30) // عدد الصناديق الفعلية الثابتة القابلة لإعادة الاستخدام أثناء اللقط
   updatedAt                      DateTime @updatedAt
 }

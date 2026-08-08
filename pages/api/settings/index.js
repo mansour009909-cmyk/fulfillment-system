@@ -16,6 +16,7 @@ export default async function handler(req, res) {
       defaultSalesPeriodDays,
       delayDaysDomestic,
       delayDaysInternational,
+      boxCount,
     } = req.body;
     const sharePercent = Number(importantSupplierSharePercent);
     const qtyTotal = Number(minOrderQtyTotal);
@@ -23,6 +24,7 @@ export default async function handler(req, res) {
     const salesPeriod = Number(defaultSalesPeriodDays);
     const delayDomestic = Number(delayDaysDomestic);
     const delayInternational = Number(delayDaysInternational);
+    const boxCountNum = Number(boxCount);
 
     if (!warehouseName) {
       return res.status(400).json({ error: "اسم المستودع مطلوب" });
@@ -45,6 +47,9 @@ export default async function handler(req, res) {
     if (!Number.isFinite(delayInternational) || delayInternational < 1) {
       return res.status(400).json({ error: "مدة تأخير المورد الخارجي غير صحيحة" });
     }
+    if (!Number.isFinite(boxCountNum) || boxCountNum < 1) {
+      return res.status(400).json({ error: "عدد الصناديق غير صحيح" });
+    }
 
     await getSettings(); // يضمن وجود الصف
     const updated = await prisma.systemSetting.update({
@@ -57,6 +62,7 @@ export default async function handler(req, res) {
         defaultSalesPeriodDays: salesPeriod,
         delayDaysDomestic: delayDomestic,
         delayDaysInternational: delayInternational,
+        boxCount: boxCountNum,
       },
     });
     return res.status(200).json(updated);

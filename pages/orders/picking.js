@@ -192,8 +192,9 @@ export default function Picking({ pickList: initialPickList, outOfStock, batchSi
               {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
               {result && !error && (
                 <p className="text-green-600 text-sm mt-2">
-                  {result.book.title} — ضعه في صندوق الطلب #{result.orderNumber} ({result.quantityPicked}/
-                  {result.quantityRequired})
+                  {result.book.title} — ضعه في{" "}
+                  {result.boxNumber ? <strong>الصندوق رقم {result.boxNumber}</strong> : `صندوق الطلب #${result.orderNumber}`}{" "}
+                  ({result.quantityPicked}/{result.quantityRequired})
                 </p>
               )}
             </form>

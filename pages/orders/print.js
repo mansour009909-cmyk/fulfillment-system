@@ -1,25 +1,22 @@
 import Link from "next/link";
 import { ArrowRight, Printer } from "lucide-react";
 import { prisma } from "../../lib/prisma";
-import { Card } from "../../components/ui/Card";
 import { BarcodeLabelSheet } from "../../components/BarcodeLabelSheet";
+import { boxCode } from "../../lib/orderFulfillment";
 
-// يطبع باركود صندوق كل الطلبات المعروضة حاليًا بصفحة /orders (نفس الاستعلام: أقدم 30 طلب غير مكتمل)
+// يطبع ملصقات الصناديق الفعلية الثابتة (BOX-01..BOX-N) — تُطبع مرة واحدة وتُعاد استخدامها
+// باستمرار أثناء اللقط، بدل ملصق جديد لكل طلب (راجع SystemSetting.boxCount)
 export async function getServerSideProps() {
-  const orders = await prisma.order.findMany({
-    where: { status: { in: ["PENDING_REVIEW", "IN_REVIEW"] } },
-    orderBy: { createdAt: "asc" },
-    take: 30,
-    include: { client: true },
-  });
-
-  const data = orders.map((o) => ({ id: o.id, orderNumber: o.orderNumber, clientName: o.client.name }));
-
-  return { props: { orders: data } };
+  const settings = await prisma.systemSetting.findUnique({ where: { id: 1 } });
+  const boxCount = settings?.boxCount ?? 30;
+  return { props: { boxCount } };
 }
 
-export default function PrintAllOrderBoxes({ orders }) {
-  const items = orders.map((o) => ({ id: o.id, code: o.orderNumber, title: `صندوق #${o.orderNumber}` }));
+export default function PrintAllBoxes({ boxCount }) {
+  const items = Array.from({ length: boxCount }, (_, i) => {
+    const n = i + 1;
+    return { id: n, code: boxCode(n), title: `صندوق رقم ${n}` };
+  });
 
   return (
     <div className="max-w-md">
@@ -29,25 +26,16 @@ export default function PrintAllOrderBoxes({ orders }) {
           رجوع للطلبات
         </Link>
         <p className="text-sm text-gray-500 my-3">
-          {orders.length} صندوق — صفحة طباعة 100×150مم، عدة ملصقات بكل صفحة.
+          {boxCount} صندوق ثابت — تُطبع مرة واحدة وتُلصق على الصناديق الفعلية بالمستودع، وتُعاد
+          استخدامها تلقائيًا لكل طلب جديد (صفحة طباعة 100×150مم).
         </p>
         <button
           onClick={() => window.print()}
-          disabled={orders.length === 0}
-          className="flex items-center justify-center gap-2 w-full bg-blue-600 text-white rounded-lg py-2.5 font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 w-full bg-blue-600 text-white rounded-lg py-2.5 font-medium hover:bg-blue-700"
         >
           <Printer size={16} />
-          طباعة كل الصناديق ({orders.length})
+          طباعة كل ملصقات الصناديق ({boxCount})
         </button>
-      </div>
-
-      <div className="print:hidden space-y-3">
-        {orders.map((o) => (
-          <Card key={o.id} className="p-3 text-sm text-gray-600">
-            #{o.orderNumber} — {o.clientName}
-          </Card>
-        ))}
-        {orders.length === 0 && <div className="p-8 text-center text-gray-400">لا توجد طلبات بانتظار المراجعة حاليًا.</div>}
       </div>
 
       <BarcodeLabelSheet items={items} />

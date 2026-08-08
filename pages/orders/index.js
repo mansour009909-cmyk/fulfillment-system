@@ -40,41 +40,45 @@ export default function OrdersIndex({ orders }) {
             طلبات بانتظار المراجعة، مرتبة من الأقدم إلى الأحدث (دفعة {orders.length} طلب)
           </p>
         </div>
-        <Link
-          href="/orders/picking"
-          className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-blue-700"
-        >
-          <ScanLine size={16} />
-          بدء اللقط حسب ترتيب الرفوف
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/orders/print"
+            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-gray-50"
+          >
+            <Printer size={16} />
+            طباعة كل الصناديق
+          </Link>
+          <Link
+            href="/orders/picking"
+            className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-blue-700"
+          >
+            <ScanLine size={16} />
+            بدء اللقط حسب ترتيب الرفوف
+          </Link>
+        </div>
       </div>
 
       <Card className="divide-y divide-gray-100">
         {orders.map((order) => {
           const st = STATUS_LABEL[order.status];
           return (
-            <div key={order.id} className="flex items-center hover:bg-gray-50">
-              <Link href={`/orders/${order.id}`} className="flex-1 min-w-0 p-4 flex justify-between items-center">
-                <div>
-                  <div className="font-medium text-gray-900">#{order.orderNumber}</div>
-                  <div className="text-sm text-gray-400">{order.clientName}</div>
+            <Link
+              key={order.id}
+              href={`/orders/${order.id}`}
+              className="p-4 flex justify-between items-center hover:bg-gray-50"
+            >
+              <div>
+                <div className="font-medium text-gray-900">#{order.orderNumber}</div>
+                <div className="text-sm text-gray-400">{order.clientName}</div>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="text-sm text-gray-500">{order.itemCount} بند</div>
+                <div className="text-sm text-gray-400">
+                  {new Date(order.createdAt).toLocaleDateString("ar-SA-u-nu-latn")}
                 </div>
-                <div className="flex items-center gap-6">
-                  <div className="text-sm text-gray-500">{order.itemCount} بند</div>
-                  <div className="text-sm text-gray-400">
-                    {new Date(order.createdAt).toLocaleDateString("ar-SA-u-nu-latn")}
-                  </div>
-                  <Badge variant={st.variant}>{st.label}</Badge>
-                </div>
-              </Link>
-              <Link
-                href={`/orders/${order.id}/barcode`}
-                title="طباعة باركود الصندوق"
-                className="p-2 me-4 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-              >
-                <Printer size={16} />
-              </Link>
-            </div>
+                <Badge variant={st.variant}>{st.label}</Badge>
+              </div>
+            </Link>
           );
         })}
 

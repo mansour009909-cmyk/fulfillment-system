@@ -1,5 +1,7 @@
+import { useState } from "react";
+import { useRouter } from "next/router";
 import Link from "next/link";
-import { ArrowRight, Printer, Package } from "lucide-react";
+import { ArrowRight, Printer, Package, Trash2 } from "lucide-react";
 import { prisma } from "../../../lib/prisma";
 import { Card } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
@@ -43,12 +45,41 @@ export async function getServerSideProps({ params }) {
 }
 
 export default function BookDetail({ book }) {
+  const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  async function handleDelete() {
+    if (!window.confirm(`متأكد تبي تحذف "${book.title}" نهائيًا من الكتالوج؟ ما يمكن التراجع.`)) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await fetch(`/api/books/${book.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json();
+      setDeleteError(data.error || "حدث خطأ");
+      setDeleting(false);
+      return;
+    }
+    router.push("/books");
+  }
+
   return (
     <div className="max-w-2xl">
-      <Link href="/books" className="inline-flex items-center gap-1 text-sm text-blue-600 mb-4">
-        <ArrowRight size={14} />
-        رجوع للكتب
-      </Link>
+      <div className="flex items-center justify-between mb-4">
+        <Link href="/books" className="inline-flex items-center gap-1 text-sm text-blue-600">
+          <ArrowRight size={14} />
+          رجوع للكتب
+        </Link>
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="inline-flex items-center gap-1 text-sm text-red-600 disabled:opacity-50"
+        >
+          <Trash2 size={14} />
+          {deleting ? "جاري الحذف..." : "حذف الكتاب"}
+        </button>
+      </div>
+      {deleteError && <p className="text-red-600 text-sm mb-4">{deleteError}</p>}
 
       <Card className="p-6 mb-6">
         <div className="flex items-start gap-5">

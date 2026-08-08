@@ -26,13 +26,22 @@ export default function ShelvesIndex({ shelves }) {
           <h1 className="text-2xl font-bold text-gray-900 mb-1">إدارة الرفوف</h1>
           <p className="text-gray-500">هيكلة المخزون والباركود لكل رف</p>
         </div>
-        <Link
-          href="/shelves/new"
-          className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-blue-700"
-        >
-          <Plus size={16} />
-          إضافة رف
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/shelves/print"
+            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-gray-50"
+          >
+            <Printer size={16} />
+            طباعة كل الملصقات
+          </Link>
+          <Link
+            href="/shelves/new"
+            className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-blue-700"
+          >
+            <Plus size={16} />
+            إضافة رف
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4">

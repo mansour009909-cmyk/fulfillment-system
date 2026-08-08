@@ -1,9 +1,7 @@
-import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowRight, Printer } from "lucide-react";
-import JsBarcode from "jsbarcode";
 import { prisma } from "../../../lib/prisma";
-import { Card } from "../../../components/ui/Card";
+import { BarcodeLabelSheet } from "../../../components/BarcodeLabelSheet";
 
 export async function getServerSideProps({ params }) {
   const book = await prisma.book.findUnique({ where: { id: Number(params.id) } });
@@ -13,19 +11,6 @@ export async function getServerSideProps({ params }) {
 }
 
 export default function BookBarcode({ book }) {
-  const svgRef = useRef(null);
-
-  useEffect(() => {
-    if (svgRef.current) {
-      JsBarcode(svgRef.current, book.barcode, {
-        format: "CODE128",
-        width: 3,
-        height: 100,
-        fontSize: 20,
-      });
-    }
-  }, [book.barcode]);
-
   return (
     <div className="max-w-md">
       <div className="print:hidden mb-6">
@@ -42,55 +27,7 @@ export default function BookBarcode({ book }) {
         </button>
       </div>
 
-      <Card className="print-area p-8 text-center">
-        <div className="print-title text-lg font-semibold text-gray-900 mb-4">{book.title}</div>
-        <svg ref={svgRef}></svg>
-      </Card>
-
-      <style jsx global>{`
-        @media print {
-          @page {
-            size: 50mm 30mm;
-            margin: 0;
-          }
-          body * {
-            visibility: hidden;
-          }
-          .print-area,
-          .print-area * {
-            visibility: visible;
-          }
-          .print-area {
-            position: absolute;
-            inset: 0;
-            width: 50mm;
-            height: 30mm;
-            margin: 0;
-            padding: 2mm;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: none;
-            border-radius: 0;
-            box-shadow: none;
-            overflow: hidden;
-          }
-          .print-area .print-title {
-            font-size: 8px;
-            margin-bottom: 1mm;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 46mm;
-          }
-          .print-area svg {
-            width: 46mm !important;
-            height: auto !important;
-            max-height: 20mm;
-          }
-        }
-      `}</style>
+      <BarcodeLabelSheet items={[{ id: book.id, code: book.barcode, title: book.title }]} />
     </div>
   );
 }

@@ -33,7 +33,7 @@ export function BarcodeLabelSheet({ items }) {
   const pages = chunk(items, PER_PAGE);
 
   return (
-    <div className="hidden print:block">
+    <div className="hidden print:block barcode-print-root">
       {pages.map((page, i) => (
         <div key={i} className="label-page">
           {page.map((item) => (
@@ -51,9 +51,15 @@ export function BarcodeLabelSheet({ items }) {
           body * {
             visibility: hidden;
           }
-          .label-page,
-          .label-page * {
+          .barcode-print-root,
+          .barcode-print-root * {
             visibility: visible;
+          }
+          .barcode-print-root {
+            position: absolute;
+            top: 0;
+            left: 0;
+            direction: ltr;
           }
           .label-page {
             display: grid;

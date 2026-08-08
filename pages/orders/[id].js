@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { ArrowRight, Printer, ScanLine, Undo2 } from "lucide-react";
+import { ArrowRight, ScanLine, Undo2 } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
@@ -160,21 +160,12 @@ export default function OrderDetail({ order }) {
         رجوع للطلبات
       </Link>
 
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold text-gray-900">#{order.orderNumber}</h1>
-            <Badge variant={st.variant}>{st.label}</Badge>
-          </div>
-          <p className="text-gray-500">{order.clientName}</p>
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-2xl font-bold text-gray-900">#{order.orderNumber}</h1>
+          <Badge variant={st.variant}>{st.label}</Badge>
         </div>
-        <Link
-          href={`/orders/${order.id}/barcode`}
-          className="inline-flex items-center gap-1 text-sm text-blue-600 whitespace-nowrap"
-        >
-          <Printer size={14} />
-          طباعة باركود الصندوق
-        </Link>
+        <p className="text-gray-500">{order.clientName}</p>
       </div>
 
       {!boxScanned && status !== "FULFILLED" && (

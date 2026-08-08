@@ -1,6 +1,6 @@
 import { requireEmployee } from "../../../../lib/mobileAuth";
 import { prisma } from "../../../../lib/prisma";
-import { updateBook } from "../../../../lib/bookCatalog";
+import { updateBook, deleteBook } from "../../../../lib/bookCatalog";
 
 export default async function handler(req, res) {
   const employee = await requireEmployee(req, res);
@@ -21,6 +21,12 @@ export default async function handler(req, res) {
 
   if (req.method === "PATCH") {
     const { result, error } = await updateBook(Number(req.query.id), req.body);
+    if (error) return res.status(error.status).json(error.body);
+    return res.status(200).json(result);
+  }
+
+  if (req.method === "DELETE") {
+    const { result, error } = await deleteBook(Number(req.query.id));
     if (error) return res.status(error.status).json(error.body);
     return res.status(200).json(result);
   }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { ArrowRight, Printer, Package, Trash2 } from "lucide-react";
+import { ArrowRight, Printer, Package, Trash2, Pencil } from "lucide-react";
 import { prisma } from "../../../lib/prisma";
 import { Card } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
@@ -70,14 +70,20 @@ export default function BookDetail({ book }) {
           <ArrowRight size={14} />
           رجوع للكتب
         </Link>
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="inline-flex items-center gap-1 text-sm text-red-600 disabled:opacity-50"
-        >
-          <Trash2 size={14} />
-          {deleting ? "جاري الحذف..." : "حذف الكتاب"}
-        </button>
+        <div className="flex items-center gap-4">
+          <Link href={`/books/${book.id}/edit`} className="inline-flex items-center gap-1 text-sm text-blue-600">
+            <Pencil size={14} />
+            تعديل
+          </Link>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="inline-flex items-center gap-1 text-sm text-red-600 disabled:opacity-50"
+          >
+            <Trash2 size={14} />
+            {deleting ? "جاري الحذف..." : "حذف الكتاب"}
+          </button>
+        </div>
       </div>
       {deleteError && <p className="text-red-600 text-sm mb-4">{deleteError}</p>}
 

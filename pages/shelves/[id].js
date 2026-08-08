@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/router";
 import Link from "next/link";
-import { ArrowRight, ScanLine, Plus, Printer } from "lucide-react";
+import { ArrowRight, ScanLine, Plus, Printer, Trash2 } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { Card } from "../../components/ui/Card";
 
@@ -28,11 +29,28 @@ export async function getServerSideProps({ params }) {
 }
 
 export default function ShelfDetail({ shelf }) {
+  const router = useRouter();
   const [stock, setStock] = useState(shelf.stock);
   const [scanInput, setScanInput] = useState("");
   const [lastResult, setLastResult] = useState(null);
   const [error, setError] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
   const inputRef = useRef(null);
+
+  async function handleDelete() {
+    if (!window.confirm(`متأكد تبي تحذف رف "${shelf.name}"؟ ما يمكن التراجع.`)) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await fetch(`/api/shelves/${shelf.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json();
+      setDeleteError(data.error || "حدث خطأ");
+      setDeleting(false);
+      return;
+    }
+    router.push("/shelves");
+  }
 
   const [manualBarcode, setManualBarcode] = useState("");
   const [manualTitle, setManualTitle] = useState("");
@@ -119,14 +137,25 @@ export default function ShelfDetail({ shelf }) {
           <h1 className="text-2xl font-bold text-gray-900 mb-1">{shelf.name}</h1>
           <p className="text-gray-500">باركود الرف: {shelf.barcode}</p>
         </div>
-        <Link
-          href={`/shelves/${shelf.id}/barcode`}
-          className="inline-flex items-center gap-1 text-sm text-blue-600 whitespace-nowrap"
-        >
-          <Printer size={14} />
-          طباعة باركود الرف
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href={`/shelves/${shelf.id}/barcode`}
+            className="inline-flex items-center gap-1 text-sm text-blue-600 whitespace-nowrap"
+          >
+            <Printer size={14} />
+            طباعة باركود الرف
+          </Link>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="inline-flex items-center gap-1 text-sm text-red-600 whitespace-nowrap disabled:opacity-50"
+          >
+            <Trash2 size={14} />
+            {deleting ? "جاري الحذف..." : "حذف الرف"}
+          </button>
+        </div>
       </div>
+      {deleteError && <p className="text-red-600 text-sm mb-4">{deleteError}</p>}
 
       <Card className="p-5 mb-6">
         <form onSubmit={handleScan}>

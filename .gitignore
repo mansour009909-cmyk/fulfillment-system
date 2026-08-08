@@ -4,4 +4,5 @@ prisma/dev.db
 .env
 scripts/catalog_import.json
 scripts/product_images_import.json
+scripts/brands_import.json
 prisma/migrations_sqlite_backup/

@@ -6,6 +6,15 @@ import json
 import openpyxl
 
 
+def first_image_url(value):
+    # عمود صورة المنتج ببعض الصفوف يحتوي عدة روابط مفصولة بفاصلة (صور متعددة للمنتج) —
+    # نأخذ أول رابط بس كصورة الغلاف الرئيسية.
+    if not value:
+        return None
+    first = str(value).split(",")[0].strip()
+    return first or None
+
+
 def to_number(value):
     if value is None or value == "":
         return None
@@ -44,7 +53,7 @@ def main(xlsx_path, out_path):
         out.append(
             {
                 "barcode": str(barcode).strip(),
-                "imageUrl": (row[img_i] or "").strip() or None,
+                "imageUrl": first_image_url(row[img_i]),
                 "brandName": (row[brand_i] or "").strip() or None,
                 "price": to_number(row[price_i]),
                 "costPrice": to_number(row[cost_i]),

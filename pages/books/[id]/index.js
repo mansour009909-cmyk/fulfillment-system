@@ -25,6 +25,7 @@ export async function getServerSideProps({ params }) {
         title: book.title,
         imageUrl: book.imageUrl,
         brandName: book.brandName,
+        brandImageUrl: book.brandImageUrl,
         price: book.price,
         costPrice: book.costPrice,
         supplierName: book.supplier?.name || null,
@@ -66,7 +67,14 @@ export default function BookDetail({ book }) {
             <h1 className="text-xl font-bold text-gray-900 mb-1">{book.title}</h1>
             <p className="text-sm text-gray-400 mb-3">{book.barcode}</p>
             <div className="flex flex-wrap items-center gap-2 mb-4">
-              {book.brandName && <Badge variant="info">{book.brandName}</Badge>}
+              {book.brandName && (
+                <span className="inline-flex items-center gap-1.5">
+                  {book.brandImageUrl && (
+                    <img src={book.brandImageUrl} alt="" className="h-5 w-5 rounded object-contain" />
+                  )}
+                  <Badge variant="info">{book.brandName}</Badge>
+                </span>
+              )}
               {book.supplierName && (
                 <Link href={`/suppliers/${book.supplierId}`}>
                   <Badge variant="neutral">المورد: {book.supplierName}</Badge>

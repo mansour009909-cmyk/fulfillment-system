@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { ArrowRight, Check, Pencil, FileText } from "lucide-react";
+import { ArrowRight, Check, Pencil, FileText, Trash2 } from "lucide-react";
 import { prisma } from "../../../lib/prisma";
 import { Card } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
@@ -96,6 +96,9 @@ export default function ReconcileInvoice({ invoice, shelves }) {
   const [shelfId, setShelfId] = useState(shelves[0]?.id || "");
   const [approveError, setApproveError] = useState(null);
   const [approving, setApproving] = useState(false);
+  const [deletingInvoice, setDeletingInvoice] = useState(false);
+  const [deletingBookId, setDeletingBookId] = useState(null);
+  const [deleteError, setDeleteError] = useState(null);
 
   async function adjustItem(bookId, value) {
     if (value === undefined || value === "") return;
@@ -174,6 +177,50 @@ export default function ReconcileInvoice({ invoice, shelves }) {
     router.push(`/suppliers`);
   }
 
+  async function deleteInvoiceEntirely() {
+    if (
+      !window.confirm(
+        invoice.status === "APPROVED"
+          ? "متأكد تبي تحذف هذي الفاتورة نهائيًا؟ سيُعكس أثرها على المخزون ورصيد المورد. ما يمكن التراجع."
+          : "متأكد تبي تحذف هذي الفاتورة نهائيًا؟ ما يمكن التراجع."
+      )
+    )
+      return;
+
+    setDeleteError(null);
+    setDeletingInvoice(true);
+    const res = await fetch(`/api/receiving/${invoice.id}/delete`, { method: "POST" });
+    const data = await res.json();
+    setDeletingInvoice(false);
+
+    if (!res.ok) {
+      setDeleteError(data.error || "حدث خطأ");
+      return;
+    }
+    router.push(`/suppliers/${invoice.supplierId}`);
+  }
+
+  async function deleteItem(item) {
+    if (!window.confirm(`متأكد تبي تحذف "${item.title}" من الفاتورة؟ ${invoice.status === "APPROVED" ? "سيُعكس أثره على المخزون ورصيد المورد. " : ""}ما يمكن التراجع.`))
+      return;
+
+    setDeleteError(null);
+    setDeletingBookId(item.bookId);
+    const res = await fetch(`/api/receiving/${invoice.id}/delete-item`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookId: item.bookId }),
+    });
+    const data = await res.json();
+    setDeletingBookId(null);
+
+    if (!res.ok) {
+      setDeleteError(data.error || "حدث خطأ");
+      return;
+    }
+    setItems((prev) => prev.filter((i) => i.bookId !== item.bookId));
+  }
+
   const allMatched = items.every((i) => i.available === i.quantityExpected);
   const totalQty = items.reduce((sum, i) => sum + i.quantityExpected, 0);
   const grandTotal = items.reduce((sum, i) => sum + i.quantityExpected * i.price, 0);
@@ -186,14 +233,30 @@ export default function ReconcileInvoice({ invoice, shelves }) {
           <ArrowRight size={14} />
           رجوع للفواتير المرشَّحة
         </Link>
-        <Link
-          href={`/suppliers/${invoice.supplierId}/invoices/${invoice.id}/edit`}
-          className="inline-flex items-center gap-1.5 text-sm text-blue-600 border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-50"
-        >
-          <Pencil size={14} />
-          تعديل الفاتورة
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/suppliers/${invoice.supplierId}/invoices/${invoice.id}/edit`}
+            className="inline-flex items-center gap-1.5 text-sm text-blue-600 border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-50"
+          >
+            <Pencil size={14} />
+            تعديل الفاتورة
+          </Link>
+          <button
+            onClick={deleteInvoiceEntirely}
+            disabled={deletingInvoice}
+            className="inline-flex items-center gap-1.5 text-sm text-red-600 border border-red-200 rounded-lg px-3 py-2 hover:bg-red-50 disabled:opacity-50"
+          >
+            <Trash2 size={14} />
+            {deletingInvoice ? "جاري الحذف..." : "حذف الفاتورة"}
+          </button>
+        </div>
       </div>
+
+      {deleteError && (
+        <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+          {deleteError}
+        </div>
+      )}
 
       {/* بطاقة الفاتورة بأسلوب مستند رسمي */}
       <Card className="p-8 mb-6">
@@ -249,6 +312,7 @@ export default function ReconcileInvoice({ invoice, shelves }) {
                 <th className="px-4 py-3 text-center border-b border-gray-200">المجموع</th>
                 <th className="px-4 py-3 text-center border-b border-gray-200">الحالة</th>
                 {!isApproved && <th className="px-4 py-3 text-center border-b border-gray-200">تعديل المتوقع</th>}
+                <th className="px-4 py-3 text-center border-b border-gray-200"></th>
               </tr>
             </thead>
             <tbody>
@@ -303,6 +367,16 @@ export default function ReconcileInvoice({ invoice, shelves }) {
                         )}
                       </td>
                     )}
+                    <td className="px-4 py-3 text-center border-b border-gray-100">
+                      <button
+                        onClick={() => deleteItem(item)}
+                        disabled={deletingBookId === item.bookId}
+                        title="حذف هذا الكتاب من الفاتورة"
+                        className="text-red-500 hover:text-red-700 disabled:opacity-50"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
                   </tr>
                 );
               })}

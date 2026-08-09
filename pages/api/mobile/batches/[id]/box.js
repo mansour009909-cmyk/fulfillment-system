@@ -33,6 +33,7 @@ export default async function handler(req, res) {
         barcode: i.book.barcode,
         imageUrl: i.book.imageUrl,
         brandName: i.book.brandName,
+        brandImageUrl: i.book.brandImageUrl,
         quantityRequired: i.quantityRequired,
         quantityVerified: i.quantityVerified,
       })),

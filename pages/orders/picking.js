@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/router";
 import Link from "next/link";
 import { ArrowRight, ScanLine, Check, ArrowLeft } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { Card } from "../../components/ui/Card";
+import { ZoomableImage } from "../../components/ui/ZoomableImage";
 
 export async function getServerSideProps() {
   const pendingOrders = await prisma.order.findMany({
@@ -44,6 +46,7 @@ export async function getServerSideProps() {
       title: needed.book.title,
       imageUrl: needed.book.imageUrl,
       brandName: needed.book.brandName,
+      brandImageUrl: needed.book.brandImageUrl,
       remaining: needed.remaining,
       available: stock.quantity,
     });
@@ -67,6 +70,7 @@ export async function getServerSideProps() {
 }
 
 export default function Picking({ pickList: initialPickList, outOfStock, batchSize }) {
+  const router = useRouter();
   const [pickList, setPickList] = useState(initialPickList);
   const [shelfIndex, setShelfIndex] = useState(0);
   const [scanInput, setScanInput] = useState("");
@@ -206,7 +210,11 @@ export default function Picking({ pickList: initialPickList, outOfStock, batchSi
             </div>
             <div className="divide-y divide-gray-100">
               {currentShelf.rows.map((row) => (
-                <div key={row.bookId} className="py-2 flex justify-between items-center text-sm">
+                <div
+                  key={row.bookId}
+                  onClick={() => router.push(`/books/${row.bookId}`)}
+                  className="py-2 flex justify-between items-center text-sm cursor-pointer hover:bg-gray-50"
+                >
                   <div className="flex items-center gap-2 min-w-0">
                     {row.remaining <= 0 && <Check size={16} className="text-green-600 shrink-0" />}
                     {row.imageUrl ? (
@@ -222,9 +230,16 @@ export default function Picking({ pickList: initialPickList, outOfStock, batchSi
                       <div className={row.remaining <= 0 ? "text-gray-400 line-through truncate" : "text-gray-900 truncate"}>
                         {row.title}
                       </div>
-                      <div className="text-gray-400 truncate">
+                      <div className="text-gray-400 truncate flex items-center gap-1.5">
                         {row.barcode}
                         {row.brandName && <span> — {row.brandName}</span>}
+                        {row.brandImageUrl && (
+                          <ZoomableImage
+                            src={row.brandImageUrl}
+                            alt={row.brandName}
+                            className="h-4 w-4 rounded object-contain shrink-0"
+                          />
+                        )}
                       </div>
                     </div>
                   </div>

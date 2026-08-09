@@ -5,6 +5,7 @@ import { ArrowRight, ScanLine, Undo2 } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
+import { ZoomableImage } from "../../components/ui/ZoomableImage";
 
 const STATUS_LABEL = {
   PENDING_REVIEW: { label: "بانتظار المراجعة", variant: "info" },
@@ -36,6 +37,7 @@ export async function getServerSideProps({ params }) {
           barcode: i.book.barcode,
           imageUrl: i.book.imageUrl,
           brandName: i.book.brandName,
+          brandImageUrl: i.book.brandImageUrl,
           quantityRequired: i.quantityRequired,
           quantityVerified: i.quantityVerified,
         })),
@@ -229,7 +231,11 @@ export default function OrderDetail({ order }) {
 
       <Card className="divide-y divide-gray-100 mb-6">
         {items.map((item) => (
-          <div key={item.bookId} className="p-4 flex justify-between items-center">
+          <div
+            key={item.bookId}
+            onClick={() => router.push(`/books/${item.bookId}`)}
+            className="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50"
+          >
             <div className="flex items-center gap-3 min-w-0">
               {item.imageUrl ? (
                 <img
@@ -242,9 +248,16 @@ export default function OrderDetail({ order }) {
               )}
               <div className="min-w-0">
                 <div className="font-medium text-gray-900 truncate">{item.title}</div>
-                <div className="text-sm text-gray-400 truncate">
+                <div className="text-sm text-gray-400 truncate flex items-center gap-1.5">
                   {item.barcode}
                   {item.brandName && <span> — {item.brandName}</span>}
+                  {item.brandImageUrl && (
+                    <ZoomableImage
+                      src={item.brandImageUrl}
+                      alt={item.brandName}
+                      className="h-5 w-5 rounded object-contain shrink-0"
+                    />
+                  )}
                 </div>
               </div>
             </div>

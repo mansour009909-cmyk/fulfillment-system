@@ -140,6 +140,13 @@ model Order {
   boxScanned  Boolean  @default(false)
   createdAt   DateTime @default(now())
 
+  // تتبّع الشحن يدويًا (بدون تكامل فعلي مع شركة شحن — يُضاف لاحقًا) — يصير قابل للتعديل فقط بعد FULFILLED
+  shippingStatus String    @default("NOT_SHIPPED") // NOT_SHIPPED | SHIPPED | DELIVERED | RETURNED
+  carrierName    String?
+  trackingNumber String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+
   fulfilledByEmployeeId Int? // أي موظف أكمل هذا الطلب فعليًا (لإحصائية الأداء) — عبر تطبيق الجوال
 
   client              Client             @relation(fields: [clientId], references: [id])

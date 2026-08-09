@@ -10,34 +10,54 @@ const STATUS_LABEL = {
   FULFILLED: { label: "تم التنفيذ", variant: "success" },
 };
 
-export async function getServerSideProps() {
-  const orders = await prisma.order.findMany({
-    where: { status: { in: ["PENDING_REVIEW", "IN_REVIEW"] } },
-    orderBy: { createdAt: "asc" },
-    take: 30,
-    include: { client: true, items: true },
-  });
+const SHIPPING_LABEL = {
+  NOT_SHIPPED: { label: "لم يُشحن", variant: "neutral" },
+  SHIPPED: { label: "تم الشحن", variant: "info" },
+  DELIVERED: { label: "تم التسليم", variant: "success" },
+  RETURNED: { label: "مرتجع", variant: "danger" },
+};
+
+export async function getServerSideProps({ query }) {
+  const view = query.view === "completed" ? "completed" : "active";
+
+  const orders =
+    view === "completed"
+      ? await prisma.order.findMany({
+          where: { status: "FULFILLED" },
+          orderBy: { charge: { createdAt: "desc" } },
+          take: 30,
+          include: { client: true, items: true },
+        })
+      : await prisma.order.findMany({
+          where: { status: { in: ["PENDING_REVIEW", "IN_REVIEW"] } },
+          orderBy: { createdAt: "asc" },
+          take: 30,
+          include: { client: true, items: true },
+        });
 
   const data = orders.map((o) => ({
     id: o.id,
     orderNumber: o.orderNumber,
     status: o.status,
+    shippingStatus: o.shippingStatus,
     clientName: o.client.name,
     itemCount: o.items.length,
     createdAt: o.createdAt.toISOString(),
   }));
 
-  return { props: { orders: data } };
+  return { props: { orders: data, view } };
 }
 
-export default function OrdersIndex({ orders }) {
+export default function OrdersIndex({ orders, view }) {
   return (
     <div>
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">الطلبات</h1>
           <p className="text-gray-500">
-            طلبات بانتظار المراجعة، مرتبة من الأقدم إلى الأحدث (دفعة {orders.length} طلب)
+            {view === "completed"
+              ? `آخر ${orders.length} طلب مكتمل`
+              : `طلبات بانتظار المراجعة، مرتبة من الأقدم إلى الأحدث (دفعة ${orders.length} طلب)`}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -58,9 +78,29 @@ export default function OrdersIndex({ orders }) {
         </div>
       </div>
 
+      <div className="flex items-center gap-2 mb-4">
+        <Link
+          href="/orders"
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+            view === "active" ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-600"
+          }`}
+        >
+          نشطة
+        </Link>
+        <Link
+          href="/orders?view=completed"
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+            view === "completed" ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-600"
+          }`}
+        >
+          مكتملة
+        </Link>
+      </div>
+
       <Card className="divide-y divide-gray-100">
         {orders.map((order) => {
           const st = STATUS_LABEL[order.status];
+          const ship = SHIPPING_LABEL[order.shippingStatus];
           return (
             <Link
               key={order.id}
@@ -76,6 +116,7 @@ export default function OrdersIndex({ orders }) {
                 <div className="text-sm text-gray-400">
                   {new Date(order.createdAt).toLocaleDateString("ar-SA-u-nu-latn")}
                 </div>
+                {view === "completed" && <Badge variant={ship.variant}>{ship.label}</Badge>}
                 <Badge variant={st.variant}>{st.label}</Badge>
               </div>
             </Link>
@@ -83,7 +124,9 @@ export default function OrdersIndex({ orders }) {
         })}
 
         {orders.length === 0 && (
-          <div className="p-8 text-center text-gray-400">لا توجد طلبات بانتظار المراجعة حاليًا.</div>
+          <div className="p-8 text-center text-gray-400">
+            {view === "completed" ? "لا توجد طلبات مكتملة بعد." : "لا توجد طلبات بانتظار المراجعة حاليًا."}
+          </div>
         )}
       </Card>
     </div>

@@ -13,10 +13,17 @@ const STATUS_LABEL = {
   FULFILLED: { label: "تم التنفيذ", variant: "success" },
 };
 
+const SHIPPING_LABEL = {
+  NOT_SHIPPED: { label: "لم يُشحن بعد", variant: "neutral" },
+  SHIPPED: { label: "تم الشحن", variant: "info" },
+  DELIVERED: { label: "تم التسليم", variant: "success" },
+  RETURNED: { label: "مرتجع", variant: "danger" },
+};
+
 export async function getServerSideProps({ params }) {
   const order = await prisma.order.findUnique({
     where: { id: Number(params.id) },
-    include: { client: true, items: { include: { book: true } } },
+    include: { client: true, items: { include: { book: true } }, fulfilledByEmployee: true },
   });
   if (!order) return { notFound: true };
 
@@ -31,6 +38,10 @@ export async function getServerSideProps({ params }) {
         boxScanned: order.boxScanned,
         clientName: order.client.name,
         createdAt: order.createdAt.toISOString(),
+        fulfilledByEmployeeName: order.fulfilledByEmployee?.name || null,
+        shippingStatus: order.shippingStatus,
+        carrierName: order.carrierName,
+        trackingNumber: order.trackingNumber,
         items: order.items.map((i) => ({
           bookId: i.bookId,
           title: i.book.title,
@@ -65,6 +76,16 @@ export default function OrderDetail({ order }) {
   const [size, setSize] = useState("");
   const [completing, setCompleting] = useState(false);
   const [completeError, setCompleteError] = useState(null);
+
+  const [markingInReview, setMarkingInReview] = useState(false);
+  const [markError, setMarkError] = useState(null);
+
+  const [shippingStatus, setShippingStatus] = useState(order.shippingStatus);
+  const [carrierName, setCarrierName] = useState(order.carrierName || "");
+  const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || "");
+  const [savingShipping, setSavingShipping] = useState(false);
+  const [shippingSaved, setShippingSaved] = useState(false);
+  const [shippingError, setShippingError] = useState(null);
 
   useEffect(() => {
     if (!boxScanned) boxRef.current?.focus();
@@ -156,6 +177,37 @@ export default function OrderDetail({ order }) {
     router.replace(`/orders/${order.id}`);
   }
 
+  async function handleMarkInReview() {
+    setMarkingInReview(true);
+    setMarkError(null);
+    const res = await fetch(`/api/orders/${order.id}/mark-in-review`, { method: "POST" });
+    const data = await res.json();
+    setMarkingInReview(false);
+    if (!res.ok) {
+      setMarkError(data.error || "حدث خطأ");
+      return;
+    }
+    setStatus("IN_REVIEW");
+  }
+
+  async function handleSaveShipping() {
+    setSavingShipping(true);
+    setShippingError(null);
+    setShippingSaved(false);
+    const res = await fetch(`/api/orders/${order.id}/shipping`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shippingStatus, carrierName, trackingNumber }),
+    });
+    const data = await res.json();
+    setSavingShipping(false);
+    if (!res.ok) {
+      setShippingError(data.error || "حدث خطأ");
+      return;
+    }
+    setShippingSaved(true);
+  }
+
   const st = STATUS_LABEL[status];
 
   return (
@@ -166,12 +218,27 @@ export default function OrderDetail({ order }) {
       </Link>
 
       <div className="mb-6">
-        <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold text-gray-900">#{order.orderNumber}</h1>
-          <Badge variant={st.variant}>{st.label}</Badge>
-          {boxNumber && <Badge variant="info">صندوق رقم {boxNumber}</Badge>}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-2xl font-bold text-gray-900">#{order.orderNumber}</h1>
+            <Badge variant={st.variant}>{st.label}</Badge>
+            {boxNumber && <Badge variant="info">صندوق رقم {boxNumber}</Badge>}
+          </div>
+          {status === "PENDING_REVIEW" && (
+            <button
+              onClick={handleMarkInReview}
+              disabled={markingInReview}
+              className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5 hover:bg-amber-100 disabled:opacity-50"
+            >
+              {markingInReview ? "جاري التحويل..." : "تحويل لقيد التنفيذ (نقص مخزون)"}
+            </button>
+          )}
         </div>
         <p className="text-gray-500">{order.clientName}</p>
+        {markError && <p className="text-red-600 text-sm mt-1">{markError}</p>}
+        {order.fulfilledByEmployeeName && (
+          <p className="text-xs text-gray-400 mt-1">جهّزه: {order.fulfilledByEmployeeName}</p>
+        )}
       </div>
 
       {!boxScanned && status !== "FULFILLED" && (
@@ -305,8 +372,58 @@ export default function OrderDetail({ order }) {
       )}
 
       {status === "FULFILLED" && (
-        <Card className="p-5 text-center text-green-700 bg-green-50 border-green-100">
-          تم تنفيذ هذا الطلب بالكامل.
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="font-medium text-gray-900">الشحن</div>
+            <Badge variant={SHIPPING_LABEL[shippingStatus].variant}>{SHIPPING_LABEL[shippingStatus].label}</Badge>
+          </div>
+          <p className="text-xs text-gray-400 mb-4">
+            تتبّع يدوي فقط (بدون تكامل فعلي مع شركة شحن حاليًا) — لتسجيل حالة الشحنة وبياناتها للمرجعية.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">شركة الشحن</label>
+              <input
+                value={carrierName}
+                onChange={(e) => setCarrierName(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">رقم البوليصة</label>
+              <input
+                value={trackingNumber}
+                onChange={(e) => setTrackingNumber(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-gray-700 mb-1">حالة الشحنة</label>
+            <select
+              value={shippingStatus}
+              onChange={(e) => setShippingStatus(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            >
+              {Object.entries(SHIPPING_LABEL).map(([value, { label }]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {shippingError && <p className="text-red-600 text-sm mb-3">{shippingError}</p>}
+          {shippingSaved && <p className="text-green-600 text-sm mb-3">تم الحفظ بنجاح.</p>}
+          <button
+            onClick={handleSaveShipping}
+            disabled={savingShipping}
+            className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            {savingShipping ? "جاري الحفظ..." : "حفظ بيانات الشحن"}
+          </button>
         </Card>
       )}
     </div>

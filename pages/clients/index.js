@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Users, Plus, KeyRound } from "lucide-react";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
@@ -119,10 +120,10 @@ export default function ClientsPage() {
           clients.map((c) => (
             <div key={c.id} className="p-4">
               <div className="flex justify-between items-center">
-                <div>
+                <Link href={`/clients/${c.id}`} className="hover:opacity-80">
                   <div className="font-medium text-gray-900">{c.name}</div>
                   <div className="text-sm text-gray-400">{c.orderCount} طلب</div>
-                </div>
+                </Link>
                 <div className="flex items-center gap-3">
                   <Badge variant={c.hasPortalAccess ? "success" : "neutral"}>
                     {c.hasPortalAccess ? "بوابة مفعّلة" : "بدون بوابة"}

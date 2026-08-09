@@ -1,15 +1,17 @@
 import { useState } from "react";
 import Link from "next/link";
-import { History, Plus, FileText } from "lucide-react";
+import { History, Plus, FileText, RefreshCw } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { FEE_LABELS } from "../../lib/fees";
+import { getSettings } from "../../lib/settings";
+import { isDaftraConfigured } from "../../lib/daftra";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 
 const FEE_TYPES = Object.keys(FEE_LABELS);
 
 export async function getServerSideProps() {
-  const [generalFees, customFees, clients, invoices, unbilled] = await Promise.all([
+  const [generalFees, customFees, clients, invoices, unbilled, settings] = await Promise.all([
     prisma.fee.findMany({ where: { clientId: null } }),
     prisma.fee.findMany({ where: { clientId: { not: null } }, include: { client: true } }),
     prisma.client.findMany({ orderBy: { name: "asc" } }),
@@ -23,6 +25,7 @@ export async function getServerSideProps() {
       _count: { id: true },
       _sum: { fulfillmentFee: true, labelFee: true, shippingFee: true, packagingFee: true },
     }),
+    getSettings(),
   ]);
 
   const generalMap = Object.fromEntries(generalFees.map((f) => [f.type, f.amount]));
@@ -58,6 +61,9 @@ export async function getServerSideProps() {
         periodEnd: inv.periodEnd.toISOString(),
         total: inv.total,
         status: inv.status,
+        daftraInvoiceId: inv.daftraInvoiceId,
+        daftraSyncedAt: inv.daftraSyncedAt ? inv.daftraSyncedAt.toISOString() : null,
+        daftraSyncError: inv.daftraSyncError,
         charges: inv.charges.map((c) => ({
           orderNumber: c.order.orderNumber,
           fulfillmentFee: c.fulfillmentFee,
@@ -66,6 +72,7 @@ export async function getServerSideProps() {
           packagingFee: c.packagingFee,
         })),
       })),
+      daftraConfigured: isDaftraConfigured(settings),
     },
   };
 }
@@ -76,6 +83,7 @@ export default function InvoicesIndex({
   clients,
   unbilledByClient,
   invoices,
+  daftraConfigured,
 }) {
   const [generalValues, setGeneralValues] = useState(generalFees);
   const [savingType, setSavingType] = useState(null);
@@ -88,6 +96,8 @@ export default function InvoicesIndex({
 
   const [generating, setGenerating] = useState(null);
   const [expandedInvoice, setExpandedInvoice] = useState(null);
+  const [syncing, setSyncing] = useState(null);
+  const [syncError, setSyncError] = useState(null);
 
   async function saveGeneralFee(type) {
     setSavingType(type);
@@ -125,6 +135,19 @@ export default function InvoicesIndex({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clientId }),
     });
+    window.location.reload();
+  }
+
+  async function syncToDaftra(invoiceId) {
+    setSyncing(invoiceId);
+    setSyncError(null);
+    const res = await fetch(`/api/invoices/${invoiceId}/sync-daftra`, { method: "POST" });
+    const data = await res.json();
+    setSyncing(null);
+    if (!res.ok) {
+      setSyncError(data.error || "تعذّرت المزامنة");
+      return;
+    }
     window.location.reload();
   }
 
@@ -265,7 +288,17 @@ export default function InvoicesIndex({
 
       <Card>
         <div className="p-5 pb-0">
-          <h2 className="font-semibold text-gray-900 mb-4">فواتير العملاء</h2>
+          <h2 className="font-semibold text-gray-900 mb-1">فواتير العملاء</h2>
+          {!daftraConfigured && (
+            <p className="text-xs text-gray-400 mb-3">
+              دفترة غير مربوطة بعد — أضف مفتاح API والنطاق الفرعي من{" "}
+              <Link href="/settings" className="text-blue-600">
+                الإعدادات
+              </Link>{" "}
+              لتفعيل المزامنة.
+            </p>
+          )}
+          {syncError && <p className="text-xs text-red-600 mb-3">{syncError}</p>}
         </div>
         <div className="divide-y divide-gray-100">
           {invoices.map((inv) => (
@@ -298,6 +331,32 @@ export default function InvoicesIndex({
                       </span>
                     </div>
                   ))}
+                  <div className="pt-3 mt-2 border-t border-gray-100 flex items-center justify-between gap-3">
+                    <div className="text-xs">
+                      {inv.daftraInvoiceId ? (
+                        <span className="text-green-600">
+                          مُزامنة مع دفترة (#{inv.daftraInvoiceId}) —{" "}
+                          {new Date(inv.daftraSyncedAt).toLocaleDateString("ar-SA-u-nu-latn")}
+                        </span>
+                      ) : inv.daftraSyncError ? (
+                        <span className="text-red-600">فشلت آخر مزامنة: {inv.daftraSyncError}</span>
+                      ) : (
+                        <span className="text-gray-400">لم تُزامَن مع دفترة بعد</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        syncToDaftra(inv.id);
+                      }}
+                      disabled={!daftraConfigured || syncing === inv.id}
+                      title={!daftraConfigured ? "أضف مفتاح API والنطاق الفرعي من الإعدادات أولًا" : undefined}
+                      className="flex items-center gap-1 bg-white border border-gray-200 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <RefreshCw size={12} />
+                      {syncing === inv.id ? "جاري المزامنة..." : "مزامنة مع دفترة"}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

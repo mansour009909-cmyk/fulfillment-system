@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ScanLine, Printer } from "lucide-react";
+import { ScanLine, Printer, Plus } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
@@ -61,6 +61,13 @@ export default function OrdersIndex({ orders, view }) {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            href="/orders/new"
+            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-gray-50"
+          >
+            <Plus size={16} />
+            طلب جديد
+          </Link>
           <Link
             href="/orders/print"
             className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-gray-50"

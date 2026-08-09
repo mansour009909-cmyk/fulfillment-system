@@ -85,6 +85,8 @@ model Client {
   email        String? @unique // بريد دخول بوابة العميل — يُعيَّن من الإدارة فقط
   passwordHash String?
 
+  daftraClientId String? // معرّف العميل بدفترة — لمزامنة فواتيره بعد ربط الحساب
+
   orders       Order[]
   fees         Fee[]
   feeAuditLogs FeeAuditLog[]
@@ -227,6 +229,11 @@ model ClientInvoice {
   total       Float
   createdAt   DateTime @default(now())
 
+  // مزامنة دفترة — يُعبّى فقط بعد نجاح المزامنة (يحتاج ربط حساب دفترة فعلي أولًا)
+  daftraInvoiceId String?
+  daftraSyncedAt  DateTime?
+  daftraSyncError String?
+
   client  Client        @relation(fields: [clientId], references: [id])
   charges OrderCharge[]
 }
@@ -347,5 +354,15 @@ model SystemSetting {
   adminUsername                  String   @default("admin") // حساب الإدارة المشترك للوحة التحكم الرئيسية بالويب
   adminPasswordHash              String?
   boxCount                       Int      @default(30) // عدد الصناديق الفعلية الثابتة القابلة لإعادة الاستخدام أثناء اللقط
+
+  // تكامل دفترة (لمزامنة فواتير العملاء) — الشكل جاهز، الربط الفعلي لاحقًا بعد فتح حساب دفترة
+  daftraApiKey    String?
+  daftraSubdomain String?
+
+  // تكامل شركة الشحن (لتوليد بوليصات آليًا) — الشكل جاهز، الربط الفعلي لاحقًا حسب الشركة المختارة
+  shippingCarrier      String? // SMSA | ARAMEX | REDBOX | OTHER
+  shippingApiKey       String?
+  shippingAccountNumber String?
+
   updatedAt                      DateTime @updatedAt
 }

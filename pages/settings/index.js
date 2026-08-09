@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Settings as SettingsIcon, ShieldCheck } from "lucide-react";
+import { Settings as SettingsIcon, ShieldCheck, Plug } from "lucide-react";
 import { getSettings } from "../../lib/settings";
 import { Card } from "../../components/ui/Card";
 
@@ -19,8 +19,118 @@ export async function getServerSideProps() {
         boxCount: settings.boxCount,
       },
       adminUsername: settings.adminUsername,
+      integrations: {
+        daftraApiKey: settings.daftraApiKey || "",
+        daftraSubdomain: settings.daftraSubdomain || "",
+        shippingCarrier: settings.shippingCarrier || "",
+        shippingApiKey: settings.shippingApiKey || "",
+        shippingAccountNumber: settings.shippingAccountNumber || "",
+      },
     },
   };
+}
+
+function IntegrationsForm({ initial }) {
+  const [form, setForm] = useState(initial);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  function set(field, value) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setSaved(false);
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    setSaving(true);
+    await fetch("/api/settings/integrations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    setSaving(false);
+    setSaved(true);
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-5">
+      <div>
+        <h3 className="text-sm font-semibold text-gray-800 mb-3">دفترة — فواتير العملاء</h3>
+        <p className="text-xs text-gray-400 mb-3">
+          يبني هذا القسم شكل الربط مع دفترة (حفظ الإعدادات ومزامنة الفواتير) تمهيدًا لربط حساب حقيقي لاحقًا.
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">النطاق الفرعي (Subdomain)</label>
+            <input
+              value={form.daftraSubdomain}
+              onChange={(e) => set("daftraSubdomain", e.target.value)}
+              placeholder="مثال: mycompany"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">مفتاح API</label>
+            <input
+              type="password"
+              value={form.daftraApiKey}
+              onChange={(e) => set("daftraApiKey", e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-gray-100 pt-5">
+        <h3 className="text-sm font-semibold text-gray-800 mb-3">شركة الشحن</h3>
+        <p className="text-xs text-gray-400 mb-3">
+          إعدادات فقط بهذي المرحلة — الربط الفعلي مع واجهة شركة الشحن يُبنى بعد اختيار الشركة النهائية.
+        </p>
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">شركة الشحن</label>
+            <select
+              value={form.shippingCarrier}
+              onChange={(e) => set("shippingCarrier", e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">— بدون —</option>
+              <option value="SMSA">SMSA</option>
+              <option value="ARAMEX">Aramex</option>
+              <option value="REDBOX">Redbox</option>
+              <option value="OTHER">أخرى</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">مفتاح API</label>
+            <input
+              type="password"
+              value={form.shippingApiKey}
+              onChange={(e) => set("shippingApiKey", e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">رقم الحساب</label>
+            <input
+              value={form.shippingAccountNumber}
+              onChange={(e) => set("shippingAccountNumber", e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {saved && <p className="text-green-600 text-sm">تم حفظ إعدادات التكامل.</p>}
+      <button
+        type="submit"
+        disabled={saving}
+        className="bg-gray-800 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-900 disabled:opacity-50"
+      >
+        {saving ? "جاري الحفظ..." : "حفظ إعدادات التكامل"}
+      </button>
+    </form>
+  );
 }
 
 function AdminAccountForm({ currentUsername }) {
@@ -96,7 +206,7 @@ function AdminAccountForm({ currentUsername }) {
   );
 }
 
-export default function SettingsPage({ settings, adminUsername }) {
+export default function SettingsPage({ settings, adminUsername, integrations }) {
   const [form, setForm] = useState(settings);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
@@ -295,6 +405,19 @@ export default function SettingsPage({ settings, adminUsername }) {
           </div>
         </div>
         <AdminAccountForm currentUsername={adminUsername} />
+      </Card>
+
+      <Card className="p-6 mt-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-11 w-11 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center shrink-0">
+            <Plug size={20} />
+          </div>
+          <div>
+            <div className="font-medium text-gray-900">التكاملات</div>
+            <p className="text-sm text-gray-500">دفترة وشركات الشحن — الشكل جاهز، الربط الفعلي يتم لاحقًا.</p>
+          </div>
+        </div>
+        <IntegrationsForm initial={integrations} />
       </Card>
     </div>
   );

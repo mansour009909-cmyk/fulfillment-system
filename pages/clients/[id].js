@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { ArrowRight, KeyRound, ClipboardList, CheckCircle2, TrendingUp, Package } from "lucide-react";
+import { ArrowRight, KeyRound, ClipboardList, CheckCircle2, TrendingUp, Package, Box } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
@@ -45,6 +45,7 @@ export async function getServerSideProps({ params }) {
         email: client.email,
         hasPortalAccess: Boolean(client.passwordHash),
         daftraClientId: client.daftraClientId || "",
+        usesOwnPackaging: client.usesOwnPackaging,
       },
       stats: {
         totalOrders: client.orders.length,
@@ -160,6 +161,38 @@ function DaftraForm({ client }) {
   );
 }
 
+function PackagingForm({ client }) {
+  const [usesOwnPackaging, setUsesOwnPackaging] = useState(client.usesOwnPackaging);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function toggle() {
+    const next = !usesOwnPackaging;
+    setSaving(true);
+    setSaved(false);
+    const res = await fetch(`/api/clients/${client.id}/packaging`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usesOwnPackaging: next }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      setUsesOwnPackaging(next);
+      setSaved(true);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+        <input type="checkbox" checked={usesOwnPackaging} onChange={toggle} disabled={saving} />
+        هذا العميل يستخدم تغليفه الخاص (كرتونه/مواده) — تُستثنى طلباته من رسوم التغليف
+      </label>
+      {saved && <span className="text-green-600 text-xs">تم الحفظ</span>}
+    </div>
+  );
+}
+
 export default function ClientDetail({ client, stats, orders }) {
   return (
     <div className="max-w-4xl">
@@ -201,6 +234,14 @@ export default function ClientDetail({ client, stats, orders }) {
           يُستخدم عند مزامنة فواتير هذا العميل مع دفترة (بعد ربط حساب دفترة من الإعدادات).
         </p>
         <DaftraForm client={client} />
+      </Card>
+
+      <Card className="p-5 mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <Box size={16} className="text-blue-600" />
+          <h2 className="font-semibold text-gray-900">التغليف</h2>
+        </div>
+        <PackagingForm client={client} />
       </Card>
 
       <div className="flex items-center justify-between mb-3">

@@ -87,6 +87,8 @@ model Client {
 
   daftraClientId String? // معرّف العميل بدفترة — لمزامنة فواتيره بعد ربط الحساب
 
+  usesOwnPackaging Boolean @default(false) // تغليف خاص بالعميل — يستخدم كرتونه/مواده الخاصة، فتُستثنى طلباته من رسوم التغليف
+
   orders       Order[]
   fees         Fee[]
   feeAuditLogs FeeAuditLog[]
@@ -364,11 +366,17 @@ model SystemSetting {
 // الشكل جاهز لكل مزوّد بقائمة PROVIDER_CATALOG بملف lib/integrations.js؛ الربط الفعلي (استدعاءات API حقيقية) يُبنى تباعًا بعد توفر حساب حقيقي لكل مزوّد.
 model Integration {
   id        Int      @id @default(autoincrement())
-  provider  String // SALLA | DAFTRA | SMSA | ARAMEX | NAQEL | REDBOX | ZAJEL | SAUDI_POST | OTHER
-  clientId  Int? // معبّى فقط لمزوّدات خاصة بعميل (SALLA)
-  apiKey    String?
+  provider  String // SALLA_APP | SALLA | DAFTRA | SMSA | ARAMEX | NAQEL | REDBOX | ZAJEL | SAUDI_POST | OTHER
+  clientId  Int? // معبّى فقط لمزوّدات خاصة بعميل (SALLA — متجر عميل معيّن)
+  apiKey    String? // مفاتيح تُدخَل يدويًا (Client ID لتطبيق سلة، مفتاح دفترة، مفتاح شركة شحن...)
   apiSecret String?
   accountId String? // معناه يختلف حسب المزوّد: نطاق فرعي، رقم حساب، معرّف متجر...
+
+  // ربط OAuth (سلة) — يُعبّى تلقائيًا بعد ما العميل يفوّض التطبيق بمتجره، مو إدخال يدوي
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

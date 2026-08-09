@@ -15,6 +15,7 @@ const PUBLIC_PATHS = [
   "/api/portal/client/login",
   "/api/portal/supplier/login",
   "/warehouse-app.apk", // تحميل تطبيق الجوال مباشرة من المتصفح — لا يحتاج تسجيل دخول
+  "/api/integrations/salla/callback", // سلة يرجّع المتصفح لهنا بعد موافقة العميل — قد يكون متصفح العميل نفسه بدون جلسة إدارية
 ];
 
 function isApi(pathname) {

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Plug, CheckCircle2, Circle, Trash2, Plus } from "lucide-react";
+import { useRouter } from "next/router";
+import { Plug, CheckCircle2, Circle, Trash2, Plus, ExternalLink, Copy } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { PROVIDER_CATALOG, CATEGORY_LABELS, isConfigured } from "../../lib/integrations";
 import { Card } from "../../components/ui/Card";
@@ -76,6 +77,14 @@ function SystemProviderRow({ provider, catalog, existing, onSaved }) {
 
       {open && (
         <form onSubmit={save} className="pb-4 grid grid-cols-2 gap-3">
+          {provider === "SALLA_APP" && (
+            <div className="col-span-2 bg-blue-50 text-blue-800 text-xs rounded-lg p-3">
+              رابط الاستدعاء (Redirect URI) اللي لازم تسجّله عند إنشاء التطبيق بمنصّة شركاء سلة:
+              <div className="font-mono mt-1 select-all break-all">
+                {typeof window !== "undefined" ? window.location.origin : ""}/api/integrations/salla/callback
+              </div>
+            </div>
+          )}
           {catalog.fields.map((f) => (
             <div key={f.key}>
               <label className="block text-xs text-gray-500 mb-1">{f.label}</label>
@@ -102,38 +111,25 @@ function SystemProviderRow({ provider, catalog, existing, onSaved }) {
   );
 }
 
-function ClientProviderSection({ provider, catalog, existing, clients, onSaved }) {
+function OAuthConnectRow({ provider, catalog, existing, clients, onSaved }) {
   const [adding, setAdding] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ clientId: clients[0]?.id || "", ...emptyForm(catalog) });
-  const [saving, setSaving] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState(clients[0]?.id || "");
+  const [generating, setGenerating] = useState(false);
+  const [linkFor, setLinkFor] = useState(null); // { clientId, url }
+  const [error, setError] = useState(null);
 
-  function startEdit(row) {
-    setEditingId(row.id);
-    setAdding(true);
-    setForm({ clientId: row.clientId, apiKey: row.apiKey, apiSecret: row.apiSecret, accountId: row.accountId });
-  }
-
-  function startAdd() {
-    setEditingId(null);
-    setAdding(true);
-    setForm({ clientId: clients[0]?.id || "", ...emptyForm(catalog) });
-  }
-
-  async function save(e) {
-    e.preventDefault();
-    setSaving(true);
-    const res = await fetch("/api/integrations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider, ...form }),
-    });
-    setSaving(false);
-    if (res.ok) {
-      onSaved();
-      setAdding(false);
-      setEditingId(null);
+  async function generateLink() {
+    setGenerating(true);
+    setError(null);
+    setLinkFor(null);
+    const res = await fetch(`/api/integrations/salla/authorize?clientId=${selectedClientId}`);
+    const data = await res.json();
+    setGenerating(false);
+    if (!res.ok) {
+      setError(data.error || "تعذّر توليد الرابط");
+      return;
     }
+    setLinkFor({ clientId: selectedClientId, url: data.url });
   }
 
   async function remove(id) {
@@ -150,7 +146,7 @@ function ClientProviderSection({ provider, catalog, existing, clients, onSaved }
         </div>
         {!adding && (
           <button
-            onClick={startAdd}
+            onClick={() => setAdding(true)}
             disabled={!clients.length}
             className="flex items-center gap-1 text-sm text-blue-600 disabled:opacity-40"
           >
@@ -173,27 +169,24 @@ function ClientProviderSection({ provider, catalog, existing, clients, onSaved }
               )}
               <span className="text-gray-800">{row.clientName}</span>
             </div>
-            <div className="flex items-center gap-3">
-              <button onClick={() => startEdit(row)} className="text-xs text-blue-600">
-                تعديل
-              </button>
-              <button onClick={() => remove(row.id)} className="text-red-500 hover:text-red-700">
-                <Trash2 size={14} />
-              </button>
-            </div>
+            <button onClick={() => remove(row.id)} className="text-red-500 hover:text-red-700">
+              <Trash2 size={14} />
+            </button>
           </div>
         ))}
       </div>
 
       {adding && (
-        <form onSubmit={save} className="mt-3 grid grid-cols-2 gap-3 bg-gray-50 rounded-lg p-3">
-          <div className="col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">العميل (المتجر)</label>
+        <div className="mt-3 bg-gray-50 rounded-lg p-3">
+          <label className="block text-xs text-gray-500 mb-1">العميل (المتجر)</label>
+          <div className="flex items-center gap-2">
             <select
-              value={form.clientId}
-              onChange={(e) => setForm((prev) => ({ ...prev, clientId: e.target.value }))}
-              disabled={editingId !== null}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm disabled:bg-gray-100"
+              value={selectedClientId}
+              onChange={(e) => {
+                setSelectedClientId(e.target.value);
+                setLinkFor(null);
+              }}
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
             >
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -201,41 +194,54 @@ function ClientProviderSection({ provider, catalog, existing, clients, onSaved }
                 </option>
               ))}
             </select>
-          </div>
-          {catalog.fields.map((f) => (
-            <div key={f.key}>
-              <label className="block text-xs text-gray-500 mb-1">{f.label}</label>
-              <input
-                type={f.key === "apiKey" || f.key === "apiSecret" ? "password" : "text"}
-                value={form[f.key] || ""}
-                onChange={(e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          ))}
-          <div className="col-span-2 flex items-center gap-2">
             <button
-              type="submit"
-              disabled={saving}
+              onClick={generateLink}
+              disabled={generating}
               className="bg-gray-800 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-900 disabled:opacity-50"
             >
-              {saving ? "جاري الحفظ..." : "حفظ الربط"}
+              {generating ? "جاري التوليد..." : "توليد رابط الربط"}
             </button>
-            <button
-              type="button"
-              onClick={() => setAdding(false)}
-              className="text-sm text-gray-500 px-3 py-2"
-            >
+            <button onClick={() => setAdding(false)} className="text-sm text-gray-500 px-2">
               إلغاء
             </button>
           </div>
-        </form>
+
+          {error && <p className="text-red-600 text-xs mt-2">{error}</p>}
+
+          {linkFor && linkFor.clientId === selectedClientId && (
+            <div className="mt-3 bg-white border border-gray-200 rounded-lg p-3">
+              <p className="text-xs text-gray-500 mb-2">
+                أرسل هذا الرابط للعميل ليوافق بمتجره على سلة، أو افتحه أنت مباشرة:
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 font-mono text-xs text-gray-700 truncate">{linkFor.url}</div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(linkFor.url)}
+                  title="نسخ"
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <Copy size={14} />
+                </button>
+                <a
+                  href={linkFor.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="فتح"
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  <ExternalLink size={14} />
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
 export default function IntegrationsPage({ integrations, clients }) {
+  const router = useRouter();
   const [data, setData] = useState(integrations);
 
   async function refresh() {
@@ -279,6 +285,15 @@ export default function IntegrationsPage({ integrations, clients }) {
         </div>
       </div>
 
+      {router.query.sallaConnected && (
+        <div className="mb-6 bg-green-50 text-green-700 text-sm rounded-lg p-3">تم ربط متجر سلة بنجاح.</div>
+      )}
+      {router.query.sallaError && (
+        <div className="mb-6 bg-red-50 text-red-700 text-sm rounded-lg p-3">
+          تعذّر ربط سلة: {router.query.sallaError}
+        </div>
+      )}
+
       {categories.map((cat) => (
         <Card key={cat} className="p-5 mb-6">
           <h2 className="font-semibold text-gray-900 mb-1">{CATEGORY_LABELS[cat]}</h2>
@@ -290,6 +305,15 @@ export default function IntegrationsPage({ integrations, clients }) {
                   provider={provider}
                   catalog={catalog}
                   existing={byProvider[provider]?.[0] || null}
+                  onSaved={refresh}
+                />
+              ) : catalog.oauth ? (
+                <OAuthConnectRow
+                  key={provider}
+                  provider={provider}
+                  catalog={catalog}
+                  existing={byProvider[provider] || []}
+                  clients={clients}
                   onSaved={refresh}
                 />
               ) : (

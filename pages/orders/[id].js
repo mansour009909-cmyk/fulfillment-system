@@ -37,6 +37,7 @@ export async function getServerSideProps({ params }) {
         boxNumber: order.boxNumber,
         boxScanned: order.boxScanned,
         clientName: order.client.name,
+        clientUsesOwnPackaging: order.client.usesOwnPackaging,
         createdAt: order.createdAt.toISOString(),
         fulfilledByEmployeeName: order.fulfilledByEmployee?.name || null,
         shippingStatus: order.shippingStatus,
@@ -73,7 +74,7 @@ export default function OrderDetail({ order }) {
   const [excessBook, setExcessBook] = useState(null);
   const bookRef = useRef(null);
 
-  const [size, setSize] = useState("");
+  const [size, setSize] = useState("MEDIUM");
   const [completing, setCompleting] = useState(false);
   const [completeError, setCompleteError] = useState(null);
 
@@ -341,10 +342,11 @@ export default function OrderDetail({ order }) {
 
       {boxScanned && status !== "FULFILLED" && allVerified && (
         <Card className="p-5">
-          <div className="font-medium text-gray-900 mb-3">حجم الطلب (اختياري)</div>
-          <div className="flex gap-2 mb-4">
+          <div className="font-medium text-gray-900 mb-3">حجم الطلب</div>
+          <div className="flex gap-2 mb-2">
             {[
               { value: "SMALL", label: "صغير" },
+              { value: "MEDIUM", label: "وسط (افتراضي)" },
               { value: "LARGE", label: "كبير" },
             ].map((opt) => (
               <button
@@ -360,6 +362,15 @@ export default function OrderDetail({ order }) {
               </button>
             ))}
           </div>
+          {order.clientUsesOwnPackaging ? (
+            <p className="text-xs text-amber-600 mb-4">
+              هذا العميل يستخدم تغليفه الخاص — لن تُحتسب رسوم تغليف على هذا الطلب مهما كان الحجم المختار.
+            </p>
+          ) : (
+            <p className="text-xs text-gray-400 mb-4">
+              صغير = فقاعات + كيس شحن · وسط = فقاعات + كرتون صغير · كبير = فقاعات + كرتون كبير
+            </p>
+          )}
           {completeError && <p className="text-red-600 text-sm mb-3">{completeError}</p>}
           <button
             onClick={handleComplete}

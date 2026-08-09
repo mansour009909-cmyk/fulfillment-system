@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutGrid, BookOpen, Package, ScanLine, ClipboardList, AlertTriangle, Users } from "lucide-react";
+import { LayoutGrid, BookOpen, Package, ScanLine, ClipboardList, AlertTriangle, Users, Store } from "lucide-react";
 import { prisma } from "../lib/prisma";
 import { Card } from "../components/ui/Card";
 import { KpiCard } from "../components/ui/KpiCard";
@@ -8,7 +8,7 @@ export async function getServerSideProps() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [shelfCount, bookCount, quantityAgg, recentScans, ordersThisMonth, inReviewCount, employees] =
+  const [shelfCount, bookCount, quantityAgg, recentScans, ordersThisMonth, inReviewCount, employees, storeOrders] =
     await Promise.all([
       prisma.shelf.count(),
       prisma.book.count(),
@@ -31,7 +31,31 @@ export async function getServerSideProps() {
         },
         orderBy: { name: "asc" },
       }),
+      prisma.order.findMany({
+        where: { status: "FULFILLED", charge: { createdAt: { gte: monthStart } } },
+        select: {
+          clientId: true,
+          client: { select: { name: true } },
+          items: { select: { quantityVerified: true, book: { select: { price: true } } } },
+        },
+      }),
     ]);
+
+  const storeMap = {};
+  for (const order of storeOrders) {
+    const entry = (storeMap[order.clientId] ||= {
+      clientName: order.client.name,
+      ordersCount: 0,
+      itemsSold: 0,
+      estimatedSales: 0,
+    });
+    entry.ordersCount += 1;
+    for (const item of order.items) {
+      entry.itemsSold += item.quantityVerified;
+      entry.estimatedSales += item.quantityVerified * (item.book.price || 0);
+    }
+  }
+  const storeStats = Object.values(storeMap).sort((a, b) => b.ordersCount - a.ordersCount);
 
   return {
     props: {
@@ -52,11 +76,12 @@ export async function getServerSideProps() {
         scannedAt: s.scannedAt.toISOString(),
         shelfName: s.shelf.name,
       })),
+      storeStats,
     },
   };
 }
 
-export default function Home({ stats, employeePerformance, recentScans }) {
+export default function Home({ stats, employeePerformance, recentScans, storeStats }) {
   const maxFulfilled = employeePerformance[0]?.fulfilledCount || 1;
   return (
     <div>
@@ -136,6 +161,47 @@ export default function Home({ stats, employeePerformance, recentScans }) {
           )}
         </Card>
       </div>
+
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Store size={16} className="text-blue-600" />
+            <h2 className="font-semibold text-gray-900">إحصائيات المتاجر (هذا الشهر)</h2>
+          </div>
+          <Link href="/clients" className="text-sm text-blue-600">
+            عرض كل العملاء
+          </Link>
+        </div>
+        {storeStats.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-400 border-b border-gray-100">
+                  <th className="text-right font-medium py-2">المتجر</th>
+                  <th className="text-right font-medium py-2">الطلبات المكتملة</th>
+                  <th className="text-right font-medium py-2">القطع المباعة</th>
+                  <th className="text-right font-medium py-2">إجمالي المبيعات (تقديري)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {storeStats.map((s) => (
+                  <tr key={s.clientName}>
+                    <td className="py-2.5 text-gray-900 font-medium">{s.clientName}</td>
+                    <td className="py-2.5 text-gray-600">{s.ordersCount}</td>
+                    <td className="py-2.5 text-gray-600">{s.itemsSold}</td>
+                    <td className="py-2.5 text-gray-600">{s.estimatedSales.toFixed(2)} ر.س</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-xs text-gray-400 mt-2">
+              المبيعات تقديرية بناءً على سعر البيع المسجَّل لكل كتاب — قد يختلف عن السعر الفعلي وقت البيع.
+            </p>
+          </div>
+        ) : (
+          <div className="text-center text-gray-400 text-sm py-6">لا توجد طلبات مكتملة لأي متجر هذا الشهر بعد.</div>
+        )}
+      </Card>
     </div>
   );
 }

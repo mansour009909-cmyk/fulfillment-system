@@ -44,7 +44,7 @@ const NAV = [
   { label: "الفواتير والرسوم", href: "/invoices", icon: FileText },
   { label: "الموظفون", href: "/employees", icon: UserCog },
   { label: "التقارير", href: "/reports", icon: BarChart3 },
-  { label: "التكاملات", href: "/integrations", icon: Plug },
+  { label: "API", href: "/integrations", icon: Plug },
   { label: "الإعدادات", href: "/settings", icon: Settings },
 ];
 

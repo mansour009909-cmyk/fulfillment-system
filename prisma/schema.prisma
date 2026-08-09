@@ -92,6 +92,7 @@ model Client {
   feeAuditLogs FeeAuditLog[]
   orderCharges OrderCharge[]
   invoices     ClientInvoice[]
+  integrations Integration[] // ربط متجره الخاص (مثل سلة) — قسم "API"
 }
 
 // موظف مستودع — تسجيل دخول بالرقم السري خاص بتطبيق الجوال فقط (منفصل عن حساب الإدارة بالويب)
@@ -355,14 +356,24 @@ model SystemSetting {
   adminPasswordHash              String?
   boxCount                       Int      @default(30) // عدد الصناديق الفعلية الثابتة القابلة لإعادة الاستخدام أثناء اللقط
 
-  // تكامل دفترة (لمزامنة فواتير العملاء) — الشكل جاهز، الربط الفعلي لاحقًا بعد فتح حساب دفترة
-  daftraApiKey    String?
-  daftraSubdomain String?
-
-  // تكامل شركة الشحن (لتوليد بوليصات آليًا) — الشكل جاهز، الربط الفعلي لاحقًا حسب الشركة المختارة
-  shippingCarrier      String? // SMSA | ARAMEX | REDBOX | OTHER
-  shippingApiKey       String?
-  shippingAccountNumber String?
-
   updatedAt                      DateTime @updatedAt
+}
+
+// ربط API عام — كل تكامل خارجي (متجر عميل، شركة شحن، محاسبة) صف واحد هنا بدل حقول متفرّقة.
+// clientId فاضي = ربط على مستوى النظام كامل (شركة شحن، دفترة)، معبّى = ربط خاص بمتجر عميل معيّن (سلة).
+// الشكل جاهز لكل مزوّد بقائمة PROVIDER_CATALOG بملف lib/integrations.js؛ الربط الفعلي (استدعاءات API حقيقية) يُبنى تباعًا بعد توفر حساب حقيقي لكل مزوّد.
+model Integration {
+  id        Int      @id @default(autoincrement())
+  provider  String // SALLA | DAFTRA | SMSA | ARAMEX | NAQEL | REDBOX | ZAJEL | SAUDI_POST | OTHER
+  clientId  Int? // معبّى فقط لمزوّدات خاصة بعميل (SALLA)
+  apiKey    String?
+  apiSecret String?
+  accountId String? // معناه يختلف حسب المزوّد: نطاق فرعي، رقم حساب، معرّف متجر...
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client? @relation(fields: [clientId], references: [id])
+
+  @@unique([provider, clientId])
 }

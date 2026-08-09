@@ -1,17 +1,16 @@
 import { useState } from "react";
 import Link from "next/link";
-import { History, Plus, FileText, RefreshCw } from "lucide-react";
+import { History, Plus, FileText, RefreshCw, Trash2 } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { FEE_LABELS } from "../../lib/fees";
-import { getSettings } from "../../lib/settings";
-import { isDaftraConfigured } from "../../lib/daftra";
+import { getIntegration, isConfigured } from "../../lib/integrations";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 
 const FEE_TYPES = Object.keys(FEE_LABELS);
 
 export async function getServerSideProps() {
-  const [generalFees, customFees, clients, invoices, unbilled, settings] = await Promise.all([
+  const [generalFees, customFees, clients, invoices, unbilled, daftraIntegration] = await Promise.all([
     prisma.fee.findMany({ where: { clientId: null } }),
     prisma.fee.findMany({ where: { clientId: { not: null } }, include: { client: true } }),
     prisma.client.findMany({ orderBy: { name: "asc" } }),
@@ -25,7 +24,7 @@ export async function getServerSideProps() {
       _count: { id: true },
       _sum: { fulfillmentFee: true, labelFee: true, shippingFee: true, packagingFee: true },
     }),
-    getSettings(),
+    getIntegration("DAFTRA"),
   ]);
 
   const generalMap = Object.fromEntries(generalFees.map((f) => [f.type, f.amount]));
@@ -72,7 +71,7 @@ export async function getServerSideProps() {
           packagingFee: c.packagingFee,
         })),
       })),
-      daftraConfigured: isDaftraConfigured(settings),
+      daftraConfigured: isConfigured(daftraIntegration),
     },
   };
 }
@@ -98,6 +97,8 @@ export default function InvoicesIndex({
   const [expandedInvoice, setExpandedInvoice] = useState(null);
   const [syncing, setSyncing] = useState(null);
   const [syncError, setSyncError] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [deleteError, setDeleteError] = useState(null);
 
   async function saveGeneralFee(type) {
     setSavingType(type);
@@ -146,6 +147,27 @@ export default function InvoicesIndex({
     setSyncing(null);
     if (!res.ok) {
       setSyncError(data.error || "تعذّرت المزامنة");
+      return;
+    }
+    window.location.reload();
+  }
+
+  async function deleteInvoice(inv) {
+    if (
+      !window.confirm(
+        `متأكد تبي تحذف فاتورة "${inv.clientName}" (${inv.total.toFixed(
+          2
+        )} ر.س)؟ شحناتها ترجع غير مفوترة وتدخل ضمن فاتورة قادمة. ما يمكن التراجع.`
+      )
+    )
+      return;
+    setDeleting(inv.id);
+    setDeleteError(null);
+    const res = await fetch(`/api/invoices/${inv.id}/delete`, { method: "POST" });
+    setDeleting(null);
+    if (!res.ok) {
+      const data = await res.json();
+      setDeleteError(data.error || "تعذّر الحذف");
       return;
     }
     window.location.reload();
@@ -291,36 +313,52 @@ export default function InvoicesIndex({
           <h2 className="font-semibold text-gray-900 mb-1">فواتير العملاء</h2>
           {!daftraConfigured && (
             <p className="text-xs text-gray-400 mb-3">
-              دفترة غير مربوطة بعد — أضف مفتاح API والنطاق الفرعي من{" "}
-              <Link href="/settings" className="text-blue-600">
-                الإعدادات
+              دفترة غير مربوطة بعد — أضف مفتاح API والنطاق الفرعي من صفحة{" "}
+              <Link href="/integrations" className="text-blue-600">
+                API
               </Link>{" "}
               لتفعيل المزامنة.
             </p>
           )}
           {syncError && <p className="text-xs text-red-600 mb-3">{syncError}</p>}
+          {deleteError && <p className="text-xs text-red-600 mb-3">{deleteError}</p>}
         </div>
         <div className="divide-y divide-gray-100">
           {invoices.map((inv) => (
             <div key={inv.id}>
-              <button
-                onClick={() => setExpandedInvoice(expandedInvoice === inv.id ? null : inv.id)}
-                className="w-full p-4 flex justify-between items-center text-right hover:bg-gray-50"
-              >
-                <div>
+              <div className="w-full p-4 flex justify-between items-center hover:bg-gray-50">
+                <button
+                  onClick={() => setExpandedInvoice(expandedInvoice === inv.id ? null : inv.id)}
+                  className="flex-1 text-right"
+                >
                   <div className="font-medium text-gray-900">{inv.clientName}</div>
                   <div className="text-sm text-gray-400">
                     {new Date(inv.periodStart).toLocaleDateString("ar-SA-u-nu-latn")} —{" "}
                     {new Date(inv.periodEnd).toLocaleDateString("ar-SA-u-nu-latn")}
                   </div>
-                </div>
+                </button>
                 <div className="flex items-center gap-4">
-                  <div className="font-semibold text-gray-900">{inv.total.toFixed(2)} ر.س</div>
+                  <button
+                    onClick={() => setExpandedInvoice(expandedInvoice === inv.id ? null : inv.id)}
+                    className="font-semibold text-gray-900"
+                  >
+                    {inv.total.toFixed(2)} ر.س
+                  </button>
                   <Badge variant={inv.status === "PAID" ? "success" : "warning"}>
                     {inv.status === "PAID" ? "مدفوعة" : "مستحقة"}
                   </Badge>
+                  {inv.status !== "PAID" && (
+                    <button
+                      onClick={() => deleteInvoice(inv)}
+                      disabled={deleting === inv.id}
+                      title="حذف الفاتورة"
+                      className="text-red-400 hover:text-red-600 disabled:opacity-40"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
-              </button>
+              </div>
               {expandedInvoice === inv.id && (
                 <div className="px-4 pb-4 text-sm">
                   {inv.charges.map((c) => (

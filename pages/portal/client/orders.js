@@ -2,15 +2,8 @@ import { prisma } from "../../../lib/prisma";
 import { getSession } from "../../../lib/webAuth";
 import { Card } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
-import { PortalNav } from "../../../components/portal/PortalNav";
-
-const TABS = [
-  { href: "/portal/client", label: "الرئيسية" },
-  { href: "/portal/client/orders", label: "الطلبات" },
-  { href: "/portal/client/inventory", label: "المخزون" },
-  { href: "/portal/client/invoices", label: "الفواتير" },
-  { href: "/portal/client/settings", label: "الإعدادات" },
-];
+import { PortalLayout } from "../../../components/portal/PortalLayout";
+import { CLIENT_TABS } from "../../../components/portal/portalTabs";
 
 const STATUS_LABEL = {
   PENDING_REVIEW: { label: "بانتظار المراجعة", variant: "info" },
@@ -26,7 +19,7 @@ const SHIPPING_LABEL = {
 };
 
 export async function getServerSideProps({ req }) {
-  const session = await getSession(req);
+  const session = await getSession(req, "CLIENT");
   const client = await prisma.client.findUnique({ where: { id: session.id } });
   if (!client) return { notFound: true };
 
@@ -56,10 +49,14 @@ export async function getServerSideProps({ req }) {
 
 export default function ClientOrders({ clientName, orders }) {
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50">
-      <PortalNav name={clientName} tabs={TABS} />
-
-      <div className="max-w-4xl mx-auto p-6">
+    <PortalLayout
+      name={clientName}
+      roleLabel="بوابة العميل"
+      tabs={CLIENT_TABS}
+      logoutUrl="/api/portal/client/logout"
+      loginUrl="/portal/client/login"
+    >
+      <div className="max-w-4xl mx-auto">
         <h1 className="text-xl font-bold text-gray-900 mb-4">الطلبات ({orders.length})</h1>
         <Card className="divide-y divide-gray-100">
           {orders.map((o) => {
@@ -89,6 +86,6 @@ export default function ClientOrders({ clientName, orders }) {
           {orders.length === 0 && <div className="p-8 text-center text-gray-400">لا توجد طلبات بعد.</div>}
         </Card>
       </div>
-    </div>
+    </PortalLayout>
   );
 }

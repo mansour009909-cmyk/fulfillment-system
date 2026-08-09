@@ -2,15 +2,8 @@ import { prisma } from "../../../lib/prisma";
 import { getSession } from "../../../lib/webAuth";
 import { Card } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
-import { PortalNav } from "../../../components/portal/PortalNav";
-
-const TABS = [
-  { href: "/portal/supplier", label: "الرئيسية" },
-  { href: "/portal/supplier/orders", label: "الطلبيات" },
-  { href: "/portal/supplier/inventory", label: "المخزون" },
-  { href: "/portal/supplier/invoices", label: "الفواتير والمستحقات" },
-  { href: "/portal/supplier/settings", label: "الإعدادات" },
-];
+import { PortalLayout } from "../../../components/portal/PortalLayout";
+import { SUPPLIER_TABS } from "../../../components/portal/portalTabs";
 
 const INVOICE_STATUS = {
   DRAFT: { label: "مسودة", variant: "warning" },
@@ -18,7 +11,7 @@ const INVOICE_STATUS = {
 };
 
 export async function getServerSideProps({ req }) {
-  const session = await getSession(req);
+  const session = await getSession(req, "SUPPLIER");
   const supplier = await prisma.supplier.findUnique({ where: { id: session.id } });
   if (!supplier) return { notFound: true };
 
@@ -50,10 +43,14 @@ export default function SupplierInvoices({ supplierName, balance, invoices }) {
   const consignmentInvoices = invoices.filter((i) => i.type === "CONSIGNMENT");
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50">
-      <PortalNav name={supplierName} tabs={TABS} />
-
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <PortalLayout
+      name={supplierName}
+      roleLabel="بوابة المورد"
+      tabs={SUPPLIER_TABS}
+      logoutUrl="/api/portal/supplier/logout"
+      loginUrl="/portal/supplier/login"
+    >
+      <div className="max-w-4xl mx-auto space-y-6">
         <Card className="p-5 flex items-center justify-between">
           <span className="text-gray-600">رصيدك المستحق</span>
           <span className="text-2xl font-bold text-gray-900">{balance.toFixed(2)} ر.س</span>
@@ -83,7 +80,7 @@ export default function SupplierInvoices({ supplierName, balance, invoices }) {
           </Card>
         </div>
       </div>
-    </div>
+    </PortalLayout>
   );
 }
 

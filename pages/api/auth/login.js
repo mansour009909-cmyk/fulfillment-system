@@ -18,6 +18,6 @@ export default async function handler(req, res) {
   }
 
   const token = await signSession({ role: "ADMIN" });
-  res.setHeader("Set-Cookie", sessionCookieHeader(token));
+  res.setHeader("Set-Cookie", sessionCookieHeader(token, "ADMIN"));
   return res.status(200).json({ ok: true });
 }

@@ -4,18 +4,11 @@ import { getSession } from "../../../lib/webAuth";
 import { Card } from "../../../components/ui/Card";
 import { KpiCard } from "../../../components/ui/KpiCard";
 import { Badge } from "../../../components/ui/Badge";
-import { PortalNav } from "../../../components/portal/PortalNav";
-
-const TABS = [
-  { href: "/portal/client", label: "الرئيسية" },
-  { href: "/portal/client/orders", label: "الطلبات" },
-  { href: "/portal/client/inventory", label: "المخزون" },
-  { href: "/portal/client/invoices", label: "الفواتير" },
-  { href: "/portal/client/settings", label: "الإعدادات" },
-];
+import { PortalLayout } from "../../../components/portal/PortalLayout";
+import { CLIENT_TABS } from "../../../components/portal/portalTabs";
 
 export async function getServerSideProps({ req }) {
-  const session = await getSession(req);
+  const session = await getSession(req, "CLIENT");
   const client = await prisma.client.findUnique({ where: { id: session.id } });
   if (!client) return { notFound: true };
 
@@ -71,10 +64,14 @@ const STATUS_LABEL = {
 
 export default function ClientPortalHome({ clientName, stats, recentOrders }) {
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50">
-      <PortalNav name={clientName} tabs={TABS} />
-
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <PortalLayout
+      name={clientName}
+      roleLabel="بوابة العميل"
+      tabs={CLIENT_TABS}
+      logoutUrl="/api/portal/client/logout"
+      loginUrl="/portal/client/login"
+    >
+      <div className="max-w-4xl mx-auto space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <KpiCard icon={ClipboardList} label="طلبات هذا الشهر" value={stats.ordersThisMonth} color="blue" />
           <KpiCard icon={AlertTriangle} label="قيد التنفيذ" value={stats.inReviewCount} color="amber" />
@@ -104,6 +101,6 @@ export default function ClientPortalHome({ clientName, stats, recentOrders }) {
           </div>
         </Card>
       </div>
-    </div>
+    </PortalLayout>
   );
 }

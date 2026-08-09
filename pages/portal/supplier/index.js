@@ -4,15 +4,8 @@ import { getSession } from "../../../lib/webAuth";
 import { Card } from "../../../components/ui/Card";
 import { KpiCard } from "../../../components/ui/KpiCard";
 import { Badge } from "../../../components/ui/Badge";
-import { PortalNav } from "../../../components/portal/PortalNav";
-
-const TABS = [
-  { href: "/portal/supplier", label: "الرئيسية" },
-  { href: "/portal/supplier/orders", label: "الطلبيات" },
-  { href: "/portal/supplier/inventory", label: "المخزون" },
-  { href: "/portal/supplier/invoices", label: "الفواتير والمستحقات" },
-  { href: "/portal/supplier/settings", label: "الإعدادات" },
-];
+import { PortalLayout } from "../../../components/portal/PortalLayout";
+import { SUPPLIER_TABS } from "../../../components/portal/portalTabs";
 
 const ORDER_STATUS = {
   PROPOSED: { label: "مقترحة", variant: "neutral" },
@@ -22,7 +15,7 @@ const ORDER_STATUS = {
 };
 
 export async function getServerSideProps({ req }) {
-  const session = await getSession(req);
+  const session = await getSession(req, "SUPPLIER");
   const supplier = await prisma.supplier.findUnique({ where: { id: session.id } });
   if (!supplier) return { notFound: true };
 
@@ -67,10 +60,14 @@ export async function getServerSideProps({ req }) {
 
 export default function SupplierPortalHome({ supplierName, stats, recentOrders }) {
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50">
-      <PortalNav name={supplierName} tabs={TABS} />
-
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <PortalLayout
+      name={supplierName}
+      roleLabel="بوابة المورد"
+      tabs={SUPPLIER_TABS}
+      logoutUrl="/api/portal/supplier/logout"
+      loginUrl="/portal/supplier/login"
+    >
+      <div className="max-w-4xl mx-auto space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <KpiCard icon={Wallet} label="رصيدك المستحق" value={`${stats.balance.toFixed(2)} ر.س`} color="green" />
           <KpiCard icon={ClipboardList} label="طلبيات جارية" value={stats.activeOrdersCount} color="blue" />
@@ -100,6 +97,6 @@ export default function SupplierPortalHome({ supplierName, stats, recentOrders }
           </div>
         </Card>
       </div>
-    </div>
+    </PortalLayout>
   );
 }

@@ -2,18 +2,11 @@ import { useState } from "react";
 import { prisma } from "../../../lib/prisma";
 import { getSession } from "../../../lib/webAuth";
 import { Card } from "../../../components/ui/Card";
-import { PortalNav } from "../../../components/portal/PortalNav";
-
-const TABS = [
-  { href: "/portal/supplier", label: "الرئيسية" },
-  { href: "/portal/supplier/orders", label: "الطلبيات" },
-  { href: "/portal/supplier/inventory", label: "المخزون" },
-  { href: "/portal/supplier/invoices", label: "الفواتير والمستحقات" },
-  { href: "/portal/supplier/settings", label: "الإعدادات" },
-];
+import { PortalLayout } from "../../../components/portal/PortalLayout";
+import { SUPPLIER_TABS } from "../../../components/portal/portalTabs";
 
 export async function getServerSideProps({ req }) {
-  const session = await getSession(req);
+  const session = await getSession(req, "SUPPLIER");
   const supplier = await prisma.supplier.findUnique({ where: { id: session.id } });
   if (!supplier) return { notFound: true };
 
@@ -49,10 +42,14 @@ export default function SupplierSettings({ supplierName, email }) {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50">
-      <PortalNav name={supplierName} tabs={TABS} />
-
-      <div className="max-w-md mx-auto p-6">
+    <PortalLayout
+      name={supplierName}
+      roleLabel="بوابة المورد"
+      tabs={SUPPLIER_TABS}
+      logoutUrl="/api/portal/supplier/logout"
+      loginUrl="/portal/supplier/login"
+    >
+      <div className="max-w-md mx-auto">
         <h1 className="text-xl font-bold text-gray-900 mb-4">الإعدادات</h1>
         <Card className="p-5">
           <div className="mb-4 text-sm text-gray-500">البريد الإلكتروني: {email}</div>
@@ -89,6 +86,6 @@ export default function SupplierSettings({ supplierName, email }) {
           </form>
         </Card>
       </div>
-    </div>
+    </PortalLayout>
   );
 }

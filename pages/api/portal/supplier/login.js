@@ -14,6 +14,6 @@ export default async function handler(req, res) {
   }
 
   const token = await signSession({ role: "SUPPLIER", id: supplier.id });
-  res.setHeader("Set-Cookie", sessionCookieHeader(token));
+  res.setHeader("Set-Cookie", sessionCookieHeader(token, "SUPPLIER"));
   return res.status(200).json({ ok: true });
 }

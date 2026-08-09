@@ -15,17 +15,15 @@ export async function getServerSideProps({ req }) {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [ordersThisMonth, pendingCount, inReviewCount, fulfilledCount, unpaidAgg, privateStockAgg, recentOrders] =
+  const [ordersThisMonth, pendingCount, inReviewCount, fulfilledCount, unpaidAgg, sharedStockAgg, recentOrders] =
     await Promise.all([
       prisma.order.count({ where: { clientId: client.id, createdAt: { gte: monthStart } } }),
       prisma.order.count({ where: { clientId: client.id, status: "PENDING_REVIEW" } }),
       prisma.order.count({ where: { clientId: client.id, status: "IN_REVIEW" } }),
       prisma.order.count({ where: { clientId: client.id, status: "FULFILLED" } }),
       prisma.clientInvoice.aggregate({ where: { clientId: client.id, status: "UNPAID" }, _sum: { total: true } }),
-      prisma.shelfStock.aggregate({
-        where: { ownership: "PRIVATE", clientId: client.id },
-        _sum: { quantity: true },
-      }),
+      // نفس استعلام إجمالي النسخ بالداشبورد الرئيسي بالضبط — نفس الرقم بالضبط، بدون مخزون خاص بالعميل
+      prisma.shelfStock.aggregate({ _sum: { quantity: true } }),
       prisma.order.findMany({
         where: { clientId: client.id },
         orderBy: { createdAt: "desc" },
@@ -43,7 +41,7 @@ export async function getServerSideProps({ req }) {
         inReviewCount,
         fulfilledCount,
         unpaidTotal: unpaidAgg._sum.total || 0,
-        privateStockQty: privateStockAgg._sum.quantity || 0,
+        sharedStockQty: sharedStockAgg._sum.quantity || 0,
       },
       recentOrders: recentOrders.map((o) => ({
         id: o.id,
@@ -78,7 +76,7 @@ export default function ClientPortalHome({ clientName, stats, recentOrders }) {
           <KpiCard icon={CheckCircle2} label="طلبات مكتملة" value={stats.fulfilledCount} color="green" />
           <KpiCard icon={ClipboardList} label="بانتظار المراجعة" value={stats.pendingCount} color="purple" />
           <KpiCard icon={Wallet} label="فواتير غير مدفوعة" value={`${stats.unpaidTotal.toFixed(2)} ر.س`} color="amber" />
-          <KpiCard icon={ClipboardList} label="مخزوني الخاص" value={`${stats.privateStockQty} نسخة`} color="blue" />
+          <KpiCard icon={ClipboardList} label="إجمالي المخزون المشترك" value={`${stats.sharedStockQty} نسخة`} color="blue" />
         </div>
 
         <Card className="p-5">

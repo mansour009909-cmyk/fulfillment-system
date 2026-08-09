@@ -8,9 +8,10 @@ export const CLIENT_TABS = [
   { href: "/portal/client/settings", label: "الإعدادات", icon: Settings },
 ];
 
+// بوابة المورد مخصَّصة لمورد التخزين (يخزن مخزونه عندنا — تخزين بحت أو بغرض البيع)،
+// مو مورد شراء عادي — فما فيها طلبيات آلية ولا فواتير شراء ولا رصيد مستحق له
 export const SUPPLIER_TABS = [
   { href: "/portal/supplier", label: "الرئيسية", icon: Home },
-  { href: "/portal/supplier/orders", label: "الطلبيات", icon: ClipboardList },
   { href: "/portal/supplier/inventory", label: "المخزون", icon: Package },
   { href: "/portal/supplier/invoices", label: "الفواتير والمستحقات", icon: FileText },
   { href: "/portal/supplier/settings", label: "الإعدادات", icon: Settings },

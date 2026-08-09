@@ -3,34 +3,14 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import { ArrowRight, Check, Pencil, FileText, Trash2 } from "lucide-react";
 import { prisma } from "../../../lib/prisma";
+import { getInvoiceReconciliation } from "../../../lib/receiving";
 import { Card } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
 
 export async function getServerSideProps({ params }) {
-  const invoice = await prisma.purchaseInvoice.findUnique({
-    where: { id: Number(params.invoiceId) },
-    include: { supplier: true, items: { include: { book: true } } },
-  });
-  if (!invoice) return { notFound: true };
-
-  const items = [];
-  for (const item of invoice.items) {
-    const availableWhere =
-      invoice.status === "APPROVED"
-        ? { bookId: item.bookId, invoiceId: invoice.id }
-        : { bookId: item.bookId, invoiceId: null };
-    const available = await prisma.receivingScan.count({ where: availableWhere });
-    items.push({
-      bookId: item.bookId,
-      barcode: item.book.barcode,
-      title: item.book.title,
-      quantityExpected: item.quantityExpected,
-      price: item.price,
-      available,
-    });
-  }
-
-  const shelves = await prisma.shelf.findMany({ orderBy: { sortOrder: "asc" } });
+  const data = await getInvoiceReconciliation(Number(params.invoiceId));
+  if (!data) return { notFound: true };
+  const { invoice, shelves } = data;
 
   // كتب ممسوحة فعليًا (غير مرتبطة بأي فاتورة بعد) لكنها غير مدرجة ببنود هذي الفاتورة —
   // يحتاجها الموظف لإضافة كتاب جديد وصل بنفس الشحنة بس ما كان بالفاتورة الأصلية
@@ -58,18 +38,12 @@ export async function getServerSideProps({ params }) {
   return {
     props: {
       invoice: {
-        id: invoice.id,
-        status: invoice.status,
-        type: invoice.type,
-        supplierId: invoice.supplierId,
-        supplierName: invoice.supplier.name,
-        supplierBalance: invoice.supplier.balance,
+        ...invoice,
         createdAt: invoice.createdAt.toISOString(),
         approvedAt: invoice.approvedAt ? invoice.approvedAt.toISOString() : null,
-        items,
         extraItems,
       },
-      shelves: shelves.map((s) => ({ id: s.id, name: s.name })),
+      shelves,
     },
   };
 }

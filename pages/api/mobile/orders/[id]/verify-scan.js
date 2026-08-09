@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   const employee = await requireEmployee(req, res);
   if (!employee) return;
 
-  const { result, error } = await verifyItemScan(Number(req.query.id), req.body.barcode);
+  const { result, error } = await verifyItemScan(Number(req.query.id), req.body.barcode, employee.id);
   if (error) return res.status(error.status).json(error.body);
   return res.status(200).json(result);
 }

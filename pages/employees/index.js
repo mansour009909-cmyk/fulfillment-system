@@ -140,7 +140,10 @@ export default function EmployeesPage() {
               <div className="flex justify-between items-center">
                 <div>
                   <div className="font-medium text-gray-900">{e.name}</div>
-                  <div className="text-sm text-gray-400">{e.fulfilledCount} طلب مكتمل</div>
+                  <div className="text-sm text-gray-400">
+                    {e.fulfilledCount} طلب مكتمل
+                    {e.errorCount > 0 && <span className="text-amber-600"> — {e.errorCount} خطأ مسجَّل</span>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge variant={e.active ? "success" : "neutral"}>{e.active ? "نشط" : "معطّل"}</Badge>

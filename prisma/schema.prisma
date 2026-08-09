@@ -43,6 +43,7 @@ model Book {
   purchaseInvoiceItems PurchaseInvoiceItem[]
   receivingScans       ReceivingScan[]
   supplierOrderItems   SupplierOrderItem[]
+  errorLogs            EmployeeErrorLog[]
 }
 
 // مخزون الرف — الربط بين الرف والكتاب + الكمية
@@ -107,6 +108,26 @@ model Employee {
 
   batches         PickingBatch[]
   fulfilledOrders Order[]
+  errorLogs       EmployeeErrorLog[]
+}
+
+// سجل أخطاء الموظف أثناء عمليات المسح (قسم 2.5) — كتاب زائد أثناء تحقق الصندوق،
+// أو فرق جرد يُكتشف ويُصحَّح أثناء استلام شحنة مورد. يُسجَّل فقط من مسارات الجوال
+// (حيث هوية الموظف معروفة فعليًا) — لا يُسجَّل شيء من مسارات الويب المشتركة.
+model EmployeeErrorLog {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  type       String // EXCESS_ITEM | INVENTORY_DISCREPANCY
+  orderId    Int?
+  invoiceId  Int?
+  bookId     Int?
+  detail     String
+  createdAt  DateTime @default(now())
+
+  employee Employee         @relation(fields: [employeeId], references: [id])
+  order    Order?           @relation(fields: [orderId], references: [id])
+  invoice  PurchaseInvoice? @relation(fields: [invoiceId], references: [id])
+  book     Book?            @relation(fields: [bookId], references: [id])
 }
 
 // دفعة تجهيز جوّال — طبقة رقيقة فوق Order/OrderItem الموجودين (بدون تكرار بيانات)
@@ -159,6 +180,7 @@ model Order {
   items               OrderItem[]
   charge              OrderCharge?
   pickingBatchOrder   PickingBatchOrder?
+  errorLogs           EmployeeErrorLog[]
 }
 
 // بند طلب — quantityPicked يتحدث أثناء اللقط من الرف (قسم 4.3)،
@@ -319,6 +341,7 @@ model PurchaseInvoice {
   items         PurchaseInvoiceItem[]
   scans         ReceivingScan[]
   supplierOrder SupplierOrder?
+  errorLogs     EmployeeErrorLog[]
 }
 
 model PurchaseInvoiceItem {

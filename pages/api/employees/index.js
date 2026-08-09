@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     const employees = await prisma.employee.findMany({
       orderBy: { createdAt: "asc" },
-      include: { _count: { select: { fulfilledOrders: true } } },
+      include: { _count: { select: { fulfilledOrders: true, errorLogs: true } } },
     });
     return res.status(200).json(
       employees.map((e) => ({
@@ -13,6 +13,7 @@ export default async function handler(req, res) {
         name: e.name,
         active: e.active,
         fulfilledCount: e._count.fulfilledOrders,
+        errorCount: e._count.errorLogs,
       }))
     );
   }

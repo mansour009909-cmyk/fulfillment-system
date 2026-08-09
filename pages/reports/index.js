@@ -40,7 +40,7 @@ export async function getServerSideProps() {
     }),
     prisma.employee.findMany({
       where: { active: true },
-      include: { _count: { select: { fulfilledOrders: true } } },
+      include: { _count: { select: { fulfilledOrders: true, errorLogs: true } } },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -98,7 +98,7 @@ export async function getServerSideProps() {
       lowStock,
       periodDays,
       employeePerformance: employees
-        .map((e) => ({ id: e.id, name: e.name, fulfilledCount: e._count.fulfilledOrders }))
+        .map((e) => ({ id: e.id, name: e.name, fulfilledCount: e._count.fulfilledOrders, errorCount: e._count.errorLogs }))
         .sort((a, b) => b.fulfilledCount - a.fulfilledCount),
     },
   };
@@ -183,7 +183,10 @@ export default function Reports({ kpis, topSelling, maxSold, lowStock, periodDay
               <div key={e.id}>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-gray-800">{e.name}</span>
-                  <span className="text-gray-500">{e.fulfilledCount}</span>
+                  <span className="text-gray-500">
+                    {e.fulfilledCount} طلب
+                    {e.errorCount > 0 && <span className="text-amber-600"> · {e.errorCount} خطأ</span>}
+                  </span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div

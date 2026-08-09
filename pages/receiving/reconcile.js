@@ -1,34 +1,10 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { prisma } from "../../lib/prisma";
+import { getReconcileCandidates } from "../../lib/receiving";
 import { Card } from "../../components/ui/Card";
 
 export async function getServerSideProps() {
-  const unlinkedScans = await prisma.receivingScan.findMany({
-    where: { invoiceId: null },
-    select: { bookId: true },
-    distinct: ["bookId"],
-  });
-  const bookIds = unlinkedScans.map((s) => s.bookId);
-
-  const candidateInvoices = bookIds.length
-    ? await prisma.purchaseInvoice.findMany({
-        where: {
-          status: "DRAFT",
-          items: { some: { bookId: { in: bookIds } } },
-        },
-        include: { supplier: true, items: true },
-        orderBy: { createdAt: "asc" },
-      })
-    : [];
-
-  const candidates = candidateInvoices.map((inv) => ({
-    id: inv.id,
-    supplierName: inv.supplier.name,
-    itemCount: inv.items.length,
-    sharedBookCount: inv.items.filter((i) => bookIds.includes(i.bookId)).length,
-  }));
-
+  const candidates = await getReconcileCandidates();
   return { props: { candidates } };
 }
 

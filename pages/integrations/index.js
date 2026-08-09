@@ -89,7 +89,7 @@ function SystemProviderRow({ provider, catalog, existing, onSaved }) {
             <div key={f.key}>
               <label className="block text-xs text-gray-500 mb-1">{f.label}</label>
               <input
-                type={f.key === "apiKey" || f.key === "apiSecret" ? "password" : "text"}
+                type={f.secret || f.key === "apiKey" || f.key === "apiSecret" ? "password" : "text"}
                 value={form[f.key] || ""}
                 onChange={(e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -1,5 +1,6 @@
 import { prisma } from "../../../../lib/prisma";
 import { proposeSupplierOrder } from "../../../../lib/supplierDemand";
+import { syncStockToSalla } from "../../../../lib/sallaSync";
 
 // راجع قسم 6.3: اعتماد الفاتورة بعد إقفال كل الفروقات — يربط الجرد الفعلي بها،
 // يحدّث رصيد المورد المالي، ويضيف الكميات المعتمدة للمخزون المشترك بالرف المختار
@@ -74,6 +75,12 @@ export default async function handler(req, res) {
           supplierId: isConsignment ? invoice.supplierId : null,
         },
       });
+    }
+  }
+
+  if (!isConsignment) {
+    for (const item of invoice.items) {
+      syncStockToSalla(item.bookId).catch(() => {});
     }
   }
 

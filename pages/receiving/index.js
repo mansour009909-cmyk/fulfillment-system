@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ArrowRight, ScanLine, ListChecks } from "lucide-react";
+import { ArrowRight, ScanLine, ListChecks, Trash2 } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { Card } from "../../components/ui/Card";
 
@@ -31,6 +31,7 @@ export default function Receiving({ tally: initialTally }) {
   const [scanInput, setScanInput] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [deletingBookId, setDeletingBookId] = useState(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -60,6 +61,18 @@ export default function Receiving({ tally: initialTally }) {
     setResult(data.book);
     setTally(data.tally);
     inputRef.current?.focus();
+  }
+
+  async function handleDelete(row) {
+    if (!window.confirm(`متأكد تبي تحذف كل مسحات "${row.title}" (${row.quantityScanned})؟ ما يمكن التراجع.`)) return;
+    setDeletingBookId(row.bookId);
+    await fetch("/api/receiving/delete-scans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookId: row.bookId }),
+    });
+    setTally((prev) => prev.filter((t) => t.bookId !== row.bookId));
+    setDeletingBookId(null);
   }
 
   return (
@@ -99,7 +112,17 @@ export default function Receiving({ tally: initialTally }) {
               <div className="font-medium text-gray-900">{row.title}</div>
               <div className="text-sm text-gray-400">{row.barcode}</div>
             </div>
-            <div className="text-lg font-semibold text-gray-900">{row.quantityScanned}</div>
+            <div className="flex items-center gap-3">
+              <div className="text-lg font-semibold text-gray-900">{row.quantityScanned}</div>
+              <button
+                onClick={() => handleDelete(row)}
+                disabled={deletingBookId === row.bookId}
+                title="حذف كل مسحات هذا الكتاب"
+                className="text-red-500 hover:text-red-700 disabled:opacity-50"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
           </div>
         ))}
         {tally.length === 0 && (

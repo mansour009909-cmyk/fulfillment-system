@@ -13,7 +13,6 @@ import {
   FileText,
   Plug,
   Settings,
-  Headset,
   ChevronDown,
   Box,
   BarChart3,
@@ -43,7 +42,6 @@ const NAV = [
     ],
   },
   { label: "الفواتير والرسوم", href: "/invoices", icon: FileText },
-  { label: "محادثات الدعم", href: "/chat", icon: MessageCircle },
   { label: "الموظفون", href: "/employees", icon: UserCog },
   { label: "التقارير", href: "/reports", icon: BarChart3 },
   { label: "API", href: "/integrations", icon: Plug },
@@ -129,10 +127,10 @@ export function Sidebar() {
       </nav>
 
       <div className="px-3 pb-6 pt-3 border-t border-sidebar-hover">
-        <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-300">
-          <Headset size={18} strokeWidth={1.75} />
-          مركز المساعدة
-        </div>
+        <NavLink
+          item={{ href: "/chat", label: "محادثات الدعم", icon: MessageCircle }}
+          active={isActive(router.pathname, "/chat")}
+        />
       </div>
     </aside>
   );

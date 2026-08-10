@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { ArrowRight, Plus, Pencil, Eye, Package, Sparkles, Zap, KeyRound } from "lucide-react";
+import { ArrowRight, Plus, Pencil, Eye, Package, Sparkles, Zap, KeyRound, MessageCircle } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
@@ -287,6 +287,13 @@ export default function SupplierDetail({ supplier }) {
           </Link>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href={`/chat/supplier/${supplier.id}`}
+            className="flex items-center gap-1.5 text-sm text-blue-600 border border-blue-200 rounded-lg px-3 py-2.5 hover:bg-blue-50"
+          >
+            <MessageCircle size={14} />
+            محادثة الدعم
+          </Link>
           <ProposeOrderButton supplierId={supplier.id} />
           <Link
             href={`/suppliers/${supplier.id}/invoices/new`}

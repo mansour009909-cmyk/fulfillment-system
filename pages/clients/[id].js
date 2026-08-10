@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { ArrowRight, KeyRound, ClipboardList, CheckCircle2, TrendingUp, Package, Box } from "lucide-react";
+import { ArrowRight, KeyRound, ClipboardList, CheckCircle2, TrendingUp, Package, Box, MessageCircle } from "lucide-react";
 import { prisma } from "../../lib/prisma";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
@@ -210,6 +210,13 @@ export default function ClientDetail({ client, stats, orders }) {
             </Badge>
           </div>
         </div>
+        <Link
+          href={`/chat/client/${client.id}`}
+          className="flex items-center gap-1.5 text-sm text-blue-600 border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-50"
+        >
+          <MessageCircle size={14} />
+          محادثة الدعم
+        </Link>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">

@@ -95,6 +95,7 @@ model Client {
   feeAuditLogs FeeAuditLog[]
   orderCharges OrderCharge[]
   invoices     ClientInvoice[]
+  chatMessages ChatMessage[]
   integrations Integration[] // ربط متجره الخاص (مثل سلة) — قسم "API"
 }
 
@@ -282,6 +283,7 @@ model Supplier {
   storageUnits SupplierStorageUnit[]
   books        Book[] // كتالوج المورد (من استيراد ملف المخزون)
   orders       SupplierOrder[]
+  chatMessages ChatMessage[]
 }
 
 // طلبية مقترحة/جارية لمورد — تغطي فقط ما قبل الوصول الفعلي؛ بعد الوصول تتحول لفاتورة شراء عادية (قسم 8)
@@ -407,4 +409,20 @@ model Integration {
   client Client? @relation(fields: [clientId], references: [id])
 
   @@unique([provider, clientId])
+}
+
+// محادثة دعم — شات مباشر لكل عميل/مورد مع الإدارة (بدون نظام تذاكر: محادثة واحدة
+// مستمرة لكل طرف، مو "تذاكر" متعددة بمواضيع منفصلة). بالضبط واحد من clientId/supplierId معبّى.
+model ChatMessage {
+  id         Int      @id @default(autoincrement())
+  clientId   Int?
+  supplierId Int?
+  senderRole String // ADMIN | CLIENT | SUPPLIER
+  body       String
+  readByAdmin Boolean @default(false)
+  readByParty Boolean @default(false)
+  createdAt  DateTime @default(now())
+
+  client   Client?   @relation(fields: [clientId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
 }

@@ -18,6 +18,7 @@ import {
   Box,
   BarChart3,
   UserCog,
+  MessageCircle,
 } from "lucide-react";
 
 const NAV = [
@@ -42,6 +43,7 @@ const NAV = [
     ],
   },
   { label: "الفواتير والرسوم", href: "/invoices", icon: FileText },
+  { label: "محادثات الدعم", href: "/chat", icon: MessageCircle },
   { label: "الموظفون", href: "/employees", icon: UserCog },
   { label: "التقارير", href: "/reports", icon: BarChart3 },
   { label: "API", href: "/integrations", icon: Plug },

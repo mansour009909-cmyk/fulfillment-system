@@ -1,4 +1,4 @@
-import { exchangeCodeForToken, saveClientToken, fetchMerchantId, subscribeOrderWebhook } from "../../../../lib/salla";
+import { exchangeCodeForToken, saveClientToken, fetchMerchantId, subscribeOrderWebhook, verifyState } from "../../../../lib/salla";
 
 function baseUrl(req) {
   const proto = req.headers["x-forwarded-proto"] || (req.headers.host?.includes("localhost") ? "http" : "https");
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     return res.redirect(302, `/integrations?sallaError=${encodeURIComponent(String(error))}`);
   }
 
-  const clientId = Number(state);
+  const clientId = verifyState(state);
   if (!code || !clientId) {
     return res.redirect(302, "/integrations?sallaError=missing_code_or_state");
   }

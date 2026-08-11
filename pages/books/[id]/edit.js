@@ -4,9 +4,13 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { prisma } from "../../../lib/prisma";
 import { Card } from "../../../components/ui/Card";
+import { ImageUploadField } from "../../../components/ui/ImageUploadField";
 
 export async function getServerSideProps({ params }) {
-  const book = await prisma.book.findUnique({ where: { id: Number(params.id) } });
+  const [book, suppliers] = await Promise.all([
+    prisma.book.findUnique({ where: { id: Number(params.id) } }),
+    prisma.supplier.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ]);
   if (!book) return { notFound: true };
 
   return {
@@ -20,12 +24,14 @@ export async function getServerSideProps({ params }) {
         brandImageUrl: book.brandImageUrl || "",
         price: book.price ?? "",
         costPrice: book.costPrice ?? "",
+        supplierId: book.supplierId || "",
       },
+      suppliers,
     },
   };
 }
 
-export default function EditBook({ book }) {
+export default function EditBook({ book, suppliers }) {
   const router = useRouter();
   const [form, setForm] = useState(book);
   const [error, setError] = useState(null);
@@ -95,6 +101,22 @@ export default function EditBook({ book }) {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">المورد</label>
+            <select
+              value={form.supplierId}
+              onChange={(e) => set("supplierId", e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">— بدون —</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">سعر البيع</label>
@@ -118,23 +140,17 @@ export default function EditBook({ book }) {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">رابط صورة الكتاب</label>
-            <input
-              value={form.imageUrl}
-              onChange={(e) => set("imageUrl", e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+          <ImageUploadField
+            label="صورة الكتاب"
+            value={form.imageUrl}
+            onChange={(url) => set("imageUrl", url)}
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">رابط شعار الماركة</label>
-            <input
-              value={form.brandImageUrl}
-              onChange={(e) => set("brandImageUrl", e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+          <ImageUploadField
+            label="شعار الماركة"
+            value={form.brandImageUrl}
+            onChange={(url) => set("brandImageUrl", url)}
+          />
 
           {error && <p className="text-red-600 text-sm">{error}</p>}
 

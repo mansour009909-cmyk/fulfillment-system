@@ -426,3 +426,12 @@ model ChatMessage {
   client   Client?   @relation(fields: [clientId], references: [id])
   supplier Supplier? @relation(fields: [supplierId], references: [id])
 }
+
+// صورة مرفوعة مباشرة (غلاف كتاب، شعار ماركة...) — تُخزَّن كبايتات بقاعدة البيانات
+// وتُقدَّم عبر /api/uploads/image/[id] بدل الاعتماد على رابط خارجي
+model UploadedImage {
+  id        Int      @id @default(autoincrement())
+  data      Bytes
+  mimeType  String
+  createdAt DateTime @default(now())
+}

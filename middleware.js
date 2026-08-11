@@ -44,6 +44,9 @@ export async function middleware(req) {
 
   if (pathname.startsWith("/api/mobile/")) return NextResponse.next();
   if (PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
+  // تقديم صور مرفوعة (أغلفة كتب، شعارات) — تُطلَب من الجوال والبوابات بدون جلسة إدارية،
+  // مثل أي ملف ثابت عام. رفع صورة جديدة (POST على /api/uploads/image بدون معرّف) يبقى محميًا.
+  if (/^\/api\/uploads\/image\/\d+$/.test(pathname)) return NextResponse.next();
 
   if (pathname.startsWith("/portal/client") || pathname.startsWith("/api/portal/client")) {
     const session = await checkSession(req, "CLIENT");

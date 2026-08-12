@@ -7,6 +7,9 @@ export default async function handler(req, res) {
 
   const session = await getSession(req, "ADMIN");
   if (!session) return res.status(401).json({ error: "غير مصرّح" });
+  if (!session.id) {
+    return res.status(401).json({ error: "جلسة قديمة — سجّل خروج ثم دخول من جديد قبل تغيير الحساب" });
+  }
 
   const { username, currentPassword, newPassword } = req.body;
   if (!username || !currentPassword || !newPassword) {

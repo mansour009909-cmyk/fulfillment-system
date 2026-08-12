@@ -8,7 +8,10 @@ import { Card } from "../../components/ui/Card";
 
 export async function getServerSideProps({ req }) {
   const [settings, session] = await Promise.all([getSettings(), getSession(req, "ADMIN")]);
-  const currentUser = await prisma.adminUser.findUnique({ where: { id: session.id } });
+  // جلسات قديمة (قبل نظام الصلاحيات) ما فيها id — ما يوجد لها حساب AdminUser مطابق
+  const currentUser = session.id
+    ? await prisma.adminUser.findUnique({ where: { id: session.id } })
+    : null;
 
   return {
     props: {

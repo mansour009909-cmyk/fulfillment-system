@@ -77,7 +77,9 @@ export async function middleware(req) {
   const session = await checkSession(req, "ADMIN");
   if (!session) return denyLogin(req, pathname, "/login");
 
-  if (session.level === "MANAGER") return NextResponse.next(); // كل الصلاحيات دائمًا
+  // جلسات قديمة (قبل نظام الصلاحيات) ما فيها level إطلاقًا — نعاملها كمدير (نفس صلاحياتها
+  // الأصلية) بدل ما نحظر صاحبها فجأة لين يسجّل خروج ودخول من جديد
+  if (!session.level || session.level === "MANAGER") return NextResponse.next();
 
   // موظف ويب (EMPLOYEE): أقسام محصورة بالمدير صراحة (بدون حاجة لاستدعاء إضافي)
   if (MANAGER_ONLY_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {

@@ -29,6 +29,7 @@ export async function getServerSideProps() {
 export default function Receiving({ tally: initialTally }) {
   const [tally, setTally] = useState(initialTally);
   const [scanInput, setScanInput] = useState("");
+  const [quantity, setQuantity] = useState("1");
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [deletingBookId, setDeletingBookId] = useState(null);
@@ -48,7 +49,7 @@ export default function Receiving({ tally: initialTally }) {
     const res = await fetch("/api/receiving/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ barcode }),
+      body: JSON.stringify({ barcode, quantity: Number(quantity) || 1 }),
     });
     const data = await res.json();
 
@@ -58,8 +59,9 @@ export default function Receiving({ tally: initialTally }) {
       return;
     }
 
-    setResult(data.book);
+    setResult({ ...data.book, quantity: data.quantity });
     setTally(data.tally);
+    setQuantity("1");
     inputRef.current?.focus();
   }
 
@@ -87,22 +89,41 @@ export default function Receiving({ tally: initialTally }) {
       </p>
 
       <Card className="p-5 mb-6">
-        <form onSubmit={handleScan}>
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-            <ScanLine size={16} />
-            امسح باركود الكتاب
-          </label>
-          <input
-            ref={inputRef}
-            value={scanInput}
-            onChange={(e) => setScanInput(e.target.value)}
-            placeholder="امسح أو اكتب الباركود..."
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            autoFocus
-          />
-          {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-          {result && !error && <p className="text-green-600 text-sm mt-2">تم مسح: {result.title}</p>}
+        <form onSubmit={handleScan} className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[200px]">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              <ScanLine size={16} />
+              امسح باركود الكتاب
+            </label>
+            <input
+              ref={inputRef}
+              value={scanInput}
+              onChange={(e) => setScanInput(e.target.value)}
+              placeholder="امسح أو اكتب الباركود..."
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus
+            />
+          </div>
+          <div className="w-28">
+            <label className="block text-sm font-medium text-gray-700 mb-2">الكمية</label>
+            <input
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {error && <p className="text-red-600 text-sm w-full">{error}</p>}
+          {result && !error && (
+            <p className="text-green-600 text-sm w-full">
+              تم مسح: {result.title} {result.quantity > 1 ? `× ${result.quantity}` : ""}
+            </p>
+          )}
         </form>
+        <p className="text-xs text-gray-400 mt-2">
+          لو وصلك كمية كبيرة من نفس الكتاب، غيّر رقم الكمية قبل المسح بدل ما تمسحه نسخة نسخة.
+        </p>
       </Card>
 
       <Card className="divide-y divide-gray-100 mb-6">

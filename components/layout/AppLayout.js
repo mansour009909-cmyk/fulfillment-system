@@ -2,8 +2,8 @@ import { useRouter } from "next/router";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
-// صفحات بدون غلاف الشريط الجانبي/العلوي: تسجيل الدخول وبوابتا العميل/المورد الخارجيتان
-const BARE_PREFIXES = ["/login", "/portal/"];
+// صفحات بدون غلاف الشريط الجانبي/العلوي: تسجيل الدخول، بوابتا العميل/المورد الخارجيتان، وصفحة رفض الصلاحية
+const BARE_PREFIXES = ["/login", "/portal/", "/no-access"];
 
 export function AppLayout({ children }) {
   const router = useRouter();

@@ -18,6 +18,7 @@ const PUBLIC_PATHS = [
   "/api/portal/client/login",
   "/api/portal/supplier/login",
   "/warehouse-app.apk", // تحميل تطبيق الجوال مباشرة من المتصفح — لا يحتاج تسجيل دخول
+  "/no-access", // وجهة أي رفض صلاحية — ما تتحقق من أي قسم بنفسها، عشان لا تسبب تحويل لا نهائي
   "/api/integrations/salla/callback", // سلة يرجّع المتصفح لهنا بعد موافقة العميل — قد يكون متصفح العميل نفسه بدون جلسة إدارية
   "/api/integrations/salla/webhook", // سلة يستدعيه مباشرة (سيرفر لسيرفر) عند أي طلب جديد — محمي بتوقيع الويبهوك لا بجلسة
 ];
@@ -41,8 +42,8 @@ function denyForbidden(req, pathname) {
     return NextResponse.json({ error: "ما عندك صلاحية الوصول لهذا القسم" }, { status: 403 });
   }
   const url = req.nextUrl.clone();
-  url.pathname = "/";
-  url.search = "?forbidden=1";
+  url.pathname = "/no-access";
+  url.search = "";
   return NextResponse.redirect(url);
 }
 

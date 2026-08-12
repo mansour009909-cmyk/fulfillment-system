@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
   const [modules, user] = await Promise.all([
     getUserModules(session.id, session.level),
-    session.id ? prisma.adminUser.findUnique({ where: { id: session.id } }) : null,
+    session.id ? prisma.employee.findUnique({ where: { id: session.id } }) : null,
   ]);
   // جلسات قديمة (بدون level) تُعامَل كمدير كامل الصلاحيات — نطابق ذلك بالاستجابة
   // عشان الواجهة (Sidebar) تعرض أقسام المدير بدل ما تخفيها

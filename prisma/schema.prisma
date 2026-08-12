@@ -100,16 +100,23 @@ model Client {
 }
 
 // موظف مستودع — تسجيل دخول بالرقم السري خاص بتطبيق الجوال فقط (منفصل عن حساب الإدارة بالويب)
+// حساب موظف موحّد — دخول جوّال (رقم سري) ودخول لوحة تحكم ويب (اسم مستخدم/كلمة سر) اختياريان
+// ومستقلان عن بعض بنفس السجل: موظف مستودع بس يحتاج pinHash فقط، وموظف مكتب بس يحتاج
+// username/passwordHash فقط، وموظف يحتاج الاثنين يعبّي كليهما بنفس الصف.
 model Employee {
-  id        Int      @id @default(autoincrement())
-  name      String
-  pinHash   String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  name         String
+  pinHash      String? // دخول تطبيق الجوال
+  username     String?  @unique // دخول لوحة التحكم بالويب
+  passwordHash String?
+  role         String   @default("EMPLOYEE") // MANAGER | EMPLOYEE — صلاحيات الويب فقط (المدير له كل شيء ضمنيًا)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
 
   batches         PickingBatch[]
   fulfilledOrders Order[]
   errorLogs       EmployeeErrorLog[]
+  permissions     EmployeePermission[]
 }
 
 // سجل أخطاء الموظف أثناء عمليات المسح (قسم 2.5) — كتاب زائد أثناء تحقق الصندوق،
@@ -372,26 +379,15 @@ model ReceivingScan {
 // حساب دخول للوحة التحكم بالويب — يحل محل الحساب الإداري المشترك الواحد. MANAGER له كل
 // الصلاحيات دائمًا؛ EMPLOYEE يقتصر على الأقسام المُدرَجة له بـAdminPermission، ويتغيّر فورًا
 // (يُقرأ من قاعدة البيانات مباشرة بكل طلب، بدون تخزينه بالجلسة) — قسم "صلاحيات الموظفين"
-model AdminUser {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique
-  passwordHash String
-  role         String   @default("EMPLOYEE") // MANAGER | EMPLOYEE
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-
-  permissions AdminPermission[]
-}
-
 // قسم واحد مسموح لموظف ويب معيّن (MANAGER ما يحتاج صفوف هنا — له كل شيء ضمنيًا)
-model AdminPermission {
-  id          Int    @id @default(autoincrement())
-  adminUserId Int
-  module      String // ORDERS | INVENTORY | CLIENTS | SUPPLIERS | INVOICES | REPORTS | INTEGRATIONS | CHAT
+model EmployeePermission {
+  id         Int    @id @default(autoincrement())
+  employeeId Int
+  module     String // ORDERS | INVENTORY | CLIENTS | SUPPLIERS | INVOICES | REPORTS | INTEGRATIONS | CHAT
 
-  adminUser AdminUser @relation(fields: [adminUserId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
 
-  @@unique([adminUserId, module])
+  @@unique([employeeId, module])
 }
 
 // إعدادات النظام العامة — صف واحد ثابت (id = 1). قيم كانت ثابتة بالكود صارت قابلة للتعديل من /settings

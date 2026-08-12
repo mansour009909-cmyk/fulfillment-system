@@ -19,17 +19,17 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "كلمة السر الجديدة قصيرة جدًا (6 أحرف على الأقل)" });
   }
 
-  const user = await prisma.adminUser.findUnique({ where: { id: session.id } });
+  const user = await prisma.employee.findUnique({ where: { id: session.id } });
   if (!user || !verifySecret(currentPassword, user.passwordHash)) {
     return res.status(401).json({ error: "كلمة السر الحالية غير صحيحة" });
   }
 
   if (username !== user.username) {
-    const clash = await prisma.adminUser.findUnique({ where: { username } });
+    const clash = await prisma.employee.findUnique({ where: { username } });
     if (clash) return res.status(409).json({ error: "اسم المستخدم هذا مستخدَم بالفعل" });
   }
 
-  await prisma.adminUser.update({
+  await prisma.employee.update({
     where: { id: user.id },
     data: { username, passwordHash: hashSecret(newPassword) },
   });

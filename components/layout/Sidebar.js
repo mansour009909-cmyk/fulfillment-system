@@ -18,7 +18,6 @@ import {
   BarChart3,
   UserCog,
   MessageCircle,
-  ShieldCheck,
 } from "lucide-react";
 import { moduleForPath } from "../../lib/adminModules";
 
@@ -45,7 +44,6 @@ const NAV = [
   },
   { label: "الفواتير والرسوم", href: "/invoices", icon: FileText },
   { label: "الموظفون", href: "/employees", icon: UserCog, managerOnly: true },
-  { label: "صلاحيات الموظفين", href: "/admin-users", icon: ShieldCheck, managerOnly: true },
   { label: "التقارير", href: "/reports", icon: BarChart3 },
   { label: "API", href: "/integrations", icon: Plug },
   { label: "الإعدادات", href: "/settings", icon: Settings, managerOnly: true },

@@ -104,21 +104,15 @@ async function main() {
     await upsertGeneralFee(type, amount);
   }
 
-  // حساب الإدارة الافتراضي للوحة التحكم بالويب (admin / admin123) — يُغيَّر فورًا من الإعدادات
-  const settings = await prisma.systemSetting.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
-  if (!settings.adminPasswordHash) {
-    await prisma.systemSetting.update({
-      where: { id: 1 },
-      data: { adminUsername: "admin", adminPasswordHash: hashSecret("admin123") },
-    });
-    console.log('حساب الإدارة الافتراضي: admin / admin123 — غيّره فورًا من صفحة "الإعدادات"');
-  }
+  await prisma.systemSetting.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
 
-  // موظف افتراضي لتسجيل الدخول بتطبيق الجوال (اسم: المشرف، رقم سري: 1234)
-  const existingEmployee = await prisma.employee.findFirst({ where: { name: "المشرف" } });
-  if (!existingEmployee) {
-    await prisma.employee.create({ data: { name: "المشرف", pinHash: hashSecret("1234") } });
-    console.log("موظف افتراضي بتطبيق الجوال: المشرف — الرقم السري 1234");
+  // حساب المدير الافتراضي (موظف موحّد بدخول ويب فقط) — admin / admin123 — يُغيَّر فورًا من صفحة الموظف
+  const existingManager = await prisma.employee.findFirst({ where: { role: "MANAGER" } });
+  if (!existingManager) {
+    await prisma.employee.create({
+      data: { name: "admin", username: "admin", passwordHash: hashSecret("admin123"), role: "MANAGER" },
+    });
+    console.log('حساب المدير الافتراضي: admin / admin123 — غيّره فورًا من صفحة "الموظفون"');
   }
 
   console.log("تم زرع البيانات التجريبية بنجاح ✅");

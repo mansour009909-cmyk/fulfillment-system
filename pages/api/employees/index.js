@@ -12,6 +12,9 @@ export default async function handler(req, res) {
         id: e.id,
         name: e.name,
         active: e.active,
+        hasMobileAccess: Boolean(e.pinHash),
+        hasWebAccess: Boolean(e.username),
+        role: e.role,
         fulfilledCount: e._count.fulfilledOrders,
         errorCount: e._count.errorLogs,
       }))
@@ -20,10 +23,14 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     const { name, pin } = req.body;
-    if (!name || !pin) return res.status(400).json({ error: "الاسم والرقم السري مطلوبان" });
-    if (String(pin).length < 4) return res.status(400).json({ error: "الرقم السري قصير جدًا (4 أرقام على الأقل)" });
+    if (!name?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
+    if (pin && String(pin).length < 4) {
+      return res.status(400).json({ error: "الرقم السري قصير جدًا (4 أرقام على الأقل)" });
+    }
 
-    const employee = await prisma.employee.create({ data: { name, pinHash: hashSecret(pin) } });
+    const employee = await prisma.employee.create({
+      data: { name: name.trim(), pinHash: pin ? hashSecret(pin) : null },
+    });
     return res.status(201).json({ id: employee.id });
   }
 

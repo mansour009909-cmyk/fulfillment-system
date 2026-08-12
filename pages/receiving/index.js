@@ -1,29 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ArrowRight, ScanLine, ListChecks, Trash2 } from "lucide-react";
-import { prisma } from "../../lib/prisma";
+import { getUnlinkedTally } from "../../lib/receiving";
 import { Card } from "../../components/ui/Card";
 
 export async function getServerSideProps() {
-  const tallyRows = await prisma.receivingScan.groupBy({
-    by: ["bookId"],
-    where: { invoiceId: null },
-    _count: { id: true },
-  });
-
-  const books = await prisma.book.findMany({
-    where: { id: { in: tallyRows.map((t) => t.bookId) } },
-  });
-  const bookMap = Object.fromEntries(books.map((b) => [b.id, b]));
-
-  const tally = tallyRows.map((t) => ({
-    bookId: t.bookId,
-    barcode: bookMap[t.bookId].barcode,
-    title: bookMap[t.bookId].title,
-    quantityScanned: t._count.id,
-  }));
-
-  return { props: { tally } };
+  const tally = await getUnlinkedTally();
+  return {
+    props: {
+      tally: tally.map((t) => ({ ...t, lastScannedAt: t.lastScannedAt?.toISOString() || null })),
+    },
+  };
 }
 
 export default function Receiving({ tally: initialTally }) {

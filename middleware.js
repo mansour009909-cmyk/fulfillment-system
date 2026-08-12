@@ -90,10 +90,20 @@ export async function middleware(req) {
   const module = moduleForPath(pathname);
   if (!module) return NextResponse.next(); // صفحات بدون قسم محدَّد (الرئيسية) متاحة لأي حساب مفعّل
 
-  const checkUrl = new URL("/api/auth/permission-check", req.url);
+  // نستدعي عبر عنوان loopback داخلي (نفس الحاوية/العملية) بدل رابط req.url العام —
+  // استدعاء الحاوية لنفسها عبر رابطها العام (HTTPS الخارجي) غير موثوق على استضافات
+  // زي Railway (قد يُحظر أو يفشل)، وسبّب 500 لكل صفحة لأي حساب EMPLOYEE
+  const port = process.env.PORT || 3000;
+  const checkUrl = new URL(`http://127.0.0.1:${port}/api/auth/permission-check`);
   checkUrl.searchParams.set("module", module);
-  const checkRes = await fetch(checkUrl, { headers: { cookie: req.headers.get("cookie") || "" } });
-  const { allowed } = await checkRes.json().catch(() => ({ allowed: false }));
+
+  let allowed = false;
+  try {
+    const checkRes = await fetch(checkUrl, { headers: { cookie: req.headers.get("cookie") || "" } });
+    ({ allowed } = await checkRes.json());
+  } catch {
+    allowed = false; // أي فشل بالاستدعاء الداخلي = رفض آمن، مو انهيار الصفحة بالكامل
+  }
 
   return allowed ? NextResponse.next() : denyForbidden(req, pathname);
 }

@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { verifySessionToken, COOKIE_NAMES } from "./lib/webAuth";
+import { moduleForPath, MANAGER_ONLY_PATHS } from "./lib/adminModules";
 
 // حماية مسارات الويب الثلاثة: لوحة التحكم الإدارية (ADMIN)، بوابة العميل (CLIENT)، بوابة المورد (SUPPLIER).
 // تطبيق الجوال له مصادقته الخاصة بتوكن Bearer (لا كوكي) — يُستثنى بالكامل هنا.
 // كل دور له كوكي جلسة منفصل (COOKIE_NAMES) — يخلي الثلاثة يبقون مسجّلين دخول بنفس المتصفح
 // بنفس الوقت بدون ما يسجّل أحدهم خروج الثاني.
-// Edge middleware: يتحقق فقط من توقيع الكوكي (Web Crypto) بدون أي استدعاء لقاعدة البيانات.
+// Edge middleware: يتحقق فقط من توقيع الكوكي (Web Crypto) بدون أي استدعاء لقاعدة البيانات —
+// عدا صلاحيات موظف الويب (EMPLOYEE) اللي تحتاج قراءة حيّة، فنستدعي API داخلي (Node runtime،
+// وصول كامل لقاعدة البيانات) بدل كسر قاعدة "بدون قاعدة بيانات هنا" — يضمن أثر فوري لأي تغيير.
 
 const PUBLIC_PATHS = [
   "/login",
@@ -23,13 +26,23 @@ function isApi(pathname) {
   return pathname.startsWith("/api/");
 }
 
-function deny(req, pathname, loginPath) {
+function denyLogin(req, pathname, loginPath) {
   if (isApi(pathname)) {
     return NextResponse.json({ error: "يلزم تسجيل الدخول" }, { status: 401 });
   }
   const url = req.nextUrl.clone();
   url.pathname = loginPath;
   url.search = "";
+  return NextResponse.redirect(url);
+}
+
+function denyForbidden(req, pathname) {
+  if (isApi(pathname)) {
+    return NextResponse.json({ error: "ما عندك صلاحية الوصول لهذا القسم" }, { status: 403 });
+  }
+  const url = req.nextUrl.clone();
+  url.pathname = "/";
+  url.search = "?forbidden=1";
   return NextResponse.redirect(url);
 }
 
@@ -50,20 +63,36 @@ export async function middleware(req) {
 
   if (pathname.startsWith("/portal/client") || pathname.startsWith("/api/portal/client")) {
     const session = await checkSession(req, "CLIENT");
-    if (!session) return deny(req, pathname, "/portal/client/login");
+    if (!session) return denyLogin(req, pathname, "/portal/client/login");
     return NextResponse.next();
   }
 
   if (pathname.startsWith("/portal/supplier") || pathname.startsWith("/api/portal/supplier")) {
     const session = await checkSession(req, "SUPPLIER");
-    if (!session) return deny(req, pathname, "/portal/supplier/login");
+    if (!session) return denyLogin(req, pathname, "/portal/supplier/login");
     return NextResponse.next();
   }
 
-  // كل شيء آخر — لوحة التحكم الإدارية بالكامل
+  // كل شيء آخر — لوحة التحكم الإدارية
   const session = await checkSession(req, "ADMIN");
-  if (!session) return deny(req, pathname, "/login");
-  return NextResponse.next();
+  if (!session) return denyLogin(req, pathname, "/login");
+
+  if (session.level === "MANAGER") return NextResponse.next(); // كل الصلاحيات دائمًا
+
+  // موظف ويب (EMPLOYEE): أقسام محصورة بالمدير صراحة (بدون حاجة لاستدعاء إضافي)
+  if (MANAGER_ONLY_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+    return denyForbidden(req, pathname);
+  }
+
+  const module = moduleForPath(pathname);
+  if (!module) return NextResponse.next(); // صفحات بدون قسم محدَّد (الرئيسية) متاحة لأي حساب مفعّل
+
+  const checkUrl = new URL("/api/auth/permission-check", req.url);
+  checkUrl.searchParams.set("module", module);
+  const checkRes = await fetch(checkUrl, { headers: { cookie: req.headers.get("cookie") || "" } });
+  const { allowed } = await checkRes.json().catch(() => ({ allowed: false }));
+
+  return allowed ? NextResponse.next() : denyForbidden(req, pathname);
 }
 
 export const config = {

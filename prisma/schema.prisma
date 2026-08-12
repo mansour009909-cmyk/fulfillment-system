@@ -369,6 +369,31 @@ model ReceivingScan {
   invoice PurchaseInvoice? @relation(fields: [invoiceId], references: [id])
 }
 
+// حساب دخول للوحة التحكم بالويب — يحل محل الحساب الإداري المشترك الواحد. MANAGER له كل
+// الصلاحيات دائمًا؛ EMPLOYEE يقتصر على الأقسام المُدرَجة له بـAdminPermission، ويتغيّر فورًا
+// (يُقرأ من قاعدة البيانات مباشرة بكل طلب، بدون تخزينه بالجلسة) — قسم "صلاحيات الموظفين"
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  role         String   @default("EMPLOYEE") // MANAGER | EMPLOYEE
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  permissions AdminPermission[]
+}
+
+// قسم واحد مسموح لموظف ويب معيّن (MANAGER ما يحتاج صفوف هنا — له كل شيء ضمنيًا)
+model AdminPermission {
+  id          Int    @id @default(autoincrement())
+  adminUserId Int
+  module      String // ORDERS | INVENTORY | CLIENTS | SUPPLIERS | INVOICES | REPORTS | INTEGRATIONS | CHAT
+
+  adminUser AdminUser @relation(fields: [adminUserId], references: [id])
+
+  @@unique([adminUserId, module])
+}
+
 // إعدادات النظام العامة — صف واحد ثابت (id = 1). قيم كانت ثابتة بالكود صارت قابلة للتعديل من /settings
 model SystemSetting {
   id                            Int      @id @default(1)

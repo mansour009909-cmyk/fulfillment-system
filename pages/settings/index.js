@@ -2,10 +2,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { Settings as SettingsIcon, ShieldCheck, Plug, ArrowLeft } from "lucide-react";
 import { getSettings } from "../../lib/settings";
+import { getSession } from "../../lib/webAuth";
+import { prisma } from "../../lib/prisma";
 import { Card } from "../../components/ui/Card";
 
-export async function getServerSideProps() {
-  const settings = await getSettings();
+export async function getServerSideProps({ req }) {
+  const [settings, session] = await Promise.all([getSettings(), getSession(req, "ADMIN")]);
+  const currentUser = await prisma.adminUser.findUnique({ where: { id: session.id } });
 
   return {
     props: {
@@ -19,7 +22,7 @@ export async function getServerSideProps() {
         delayDaysInternational: settings.delayDaysInternational,
         boxCount: settings.boxCount,
       },
-      adminUsername: settings.adminUsername,
+      adminUsername: currentUser?.username || "",
     },
   };
 }

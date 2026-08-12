@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import {
@@ -18,7 +18,9 @@ import {
   BarChart3,
   UserCog,
   MessageCircle,
+  ShieldCheck,
 } from "lucide-react";
+import { moduleForPath } from "../../lib/adminModules";
 
 const NAV = [
   { label: "الرئيسية", href: "/", icon: Home },
@@ -42,15 +44,26 @@ const NAV = [
     ],
   },
   { label: "الفواتير والرسوم", href: "/invoices", icon: FileText },
-  { label: "الموظفون", href: "/employees", icon: UserCog },
+  { label: "الموظفون", href: "/employees", icon: UserCog, managerOnly: true },
+  { label: "صلاحيات الموظفين", href: "/admin-users", icon: ShieldCheck, managerOnly: true },
   { label: "التقارير", href: "/reports", icon: BarChart3 },
   { label: "API", href: "/integrations", icon: Plug },
-  { label: "الإعدادات", href: "/settings", icon: Settings },
+  { label: "الإعدادات", href: "/settings", icon: Settings, managerOnly: true },
 ];
 
 function isActive(pathname, href) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(href + "/");
+}
+
+// مدير = يشوف كل شي. موظف = فقط الأقسام المسموحة له (+ الصفحات بدون قسم محدَّد كالرئيسية)،
+// وأبدًا الأقسام المحصورة بالمدير (managerOnly) بغض النظر عن الصلاحيات المعطاة له
+function isVisible(item, me) {
+  if (!me) return false; // قبل ما نجيب صلاحيات المستخدم، ما نعرض شيء غير أكيد إنه مسموح
+  if (item.managerOnly) return me.level === "MANAGER";
+  if (me.level === "MANAGER") return true;
+  const mod = moduleForPath(item.href);
+  return !mod || me.modules.includes(mod);
 }
 
 function NavLink({ item, active }) {
@@ -70,15 +83,29 @@ function NavLink({ item, active }) {
 
 export function Sidebar() {
   const router = useRouter();
+  const [me, setMe] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setMe)
+      .catch(() => setMe(null));
+  }, []);
+
+  const visibleNav = NAV.map((item) =>
+    item.children ? { ...item, children: item.children.filter((c) => isVisible(c, me)) } : item
+  ).filter((item) => (item.children ? item.children.length > 0 : isVisible(item, me)));
+
   const groupActiveMap = Object.fromEntries(
-    NAV.filter((item) => item.children).map((item) => [
-      item.label,
-      item.children.some((c) => isActive(router.pathname, c.href)),
-    ])
+    visibleNav
+      .filter((item) => item.children)
+      .map((item) => [item.label, item.children.some((c) => isActive(router.pathname, c.href))])
   );
   const [openGroups, setOpenGroups] = useState(() =>
     Object.fromEntries(NAV.filter((item) => item.children).map((item) => [item.label, true]))
   );
+
+  const chatVisible = me && (me.level === "MANAGER" || me.modules.includes("CHAT"));
 
   return (
     <aside className="w-64 shrink-0 bg-sidebar text-white flex flex-col h-screen sticky top-0">
@@ -90,7 +117,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-        {NAV.map((item) => {
+        {visibleNav.map((item) => {
           if (item.children) {
             const isOpen = openGroups[item.label];
             const groupActive = groupActiveMap[item.label];
@@ -126,12 +153,14 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="px-3 pb-6 pt-3 border-t border-sidebar-hover">
-        <NavLink
-          item={{ href: "/chat", label: "محادثات الدعم", icon: MessageCircle }}
-          active={isActive(router.pathname, "/chat")}
-        />
-      </div>
+      {chatVisible && (
+        <div className="px-3 pb-6 pt-3 border-t border-sidebar-hover">
+          <NavLink
+            item={{ href: "/chat", label: "محادثات الدعم", icon: MessageCircle }}
+            active={isActive(router.pathname, "/chat")}
+          />
+        </div>
+      )}
     </aside>
   );
 }

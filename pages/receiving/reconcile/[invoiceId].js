@@ -68,6 +68,7 @@ export default function ReconcileInvoice({ invoice, shelves }) {
   const [addingBookId, setAddingBookId] = useState(null);
   const [addError, setAddError] = useState(null);
   const [shelfId, setShelfId] = useState(shelves[0]?.id || "");
+  const [allowShort, setAllowShort] = useState(false);
   const [approveError, setApproveError] = useState(null);
   const [approving, setApproving] = useState(false);
   const [deletingInvoice, setDeletingInvoice] = useState(false);
@@ -138,7 +139,7 @@ export default function ReconcileInvoice({ invoice, shelves }) {
     const res = await fetch(`/api/receiving/${invoice.id}/approve`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shelfId }),
+      body: JSON.stringify({ shelfId, allowShort }),
     });
     const data = await res.json();
     setApproving(false);
@@ -196,6 +197,8 @@ export default function ReconcileInvoice({ invoice, shelves }) {
   }
 
   const allMatched = items.every((i) => i.available === i.quantityExpected);
+  // مع "اعتماد حتى لو ناقصة": يكفي إن كل بند إما مطابق أو زائد (الاعتماد يتكفّل بالنقص تلقائيًا)
+  const canApprove = items.every((i) => i.available === i.quantityExpected || (allowShort && i.available < i.quantityExpected) || i.available > i.quantityExpected);
   const totalQty = items.reduce((sum, i) => sum + i.quantityExpected, 0);
   const grandTotal = items.reduce((sum, i) => sum + i.quantityExpected * i.price, 0);
   const isApproved = invoice.status === "APPROVED";
@@ -436,18 +439,25 @@ export default function ReconcileInvoice({ invoice, shelves }) {
               ))}
             </select>
           </div>
+          {!allMatched && (
+            <label className="flex items-center gap-2 text-sm text-gray-700 mb-4 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              <input type="checkbox" checked={allowShort} onChange={(e) => setAllowShort(e.target.checked)} />
+              اعتماد الفاتورة حتى لو وصلت ناقصة — تُعدَّل الكمية الناقصة تلقائيًا لتطابق المتوفر فعليًا، ويُحاسَب
+              المورد على المستلم فقط
+            </label>
+          )}
           {approveError && <p className="text-red-600 text-sm mb-3">{approveError}</p>}
           <button
             onClick={approve}
-            disabled={approving || !allMatched || !shelves.length}
+            disabled={approving || !canApprove || !shelves.length}
             className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white rounded-lg py-2.5 font-medium hover:bg-blue-700 disabled:opacity-50"
           >
             <Check size={16} />
             {approving ? "جاري الاعتماد..." : "اعتماد الفاتورة"}
           </button>
-          {!allMatched && (
+          {!allMatched && !canApprove && (
             <p className="text-xs text-gray-400 mt-2 text-center">
-              لازم تقفل كل الفروقات (متوقع = ممسوح) قبل الاعتماد.
+              لازم تقفل كل الفروقات (متوقع = ممسوح)، أو تفعّل خيار "اعتماد حتى لو ناقصة" أعلاه.
             </p>
           )}
         </Card>

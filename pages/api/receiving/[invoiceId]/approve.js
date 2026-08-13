@@ -6,7 +6,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { result, error } = await approveReceivingInvoice(Number(req.query.invoiceId), req.body.shelfId);
+  const { result, error } = await approveReceivingInvoice(
+    Number(req.query.invoiceId),
+    req.body.shelfId,
+    Boolean(req.body.allowShort)
+  );
   if (error) return res.status(error.status).json(error.body);
   return res.status(200).json(result);
 }
